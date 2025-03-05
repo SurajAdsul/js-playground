@@ -26,6 +26,7 @@
     "@mantine/core": "^7.17.1",
     "@mantine/hooks": "^7.17.1",
     "@monaco-editor/react": "^4.7.0",
+    "@uiw/codemirror-theme-dracula": "^4.23.10",
     "@uiw/react-codemirror": "^4.23.10",
     "electron-updater": "^6.3.9",
     "monaco-editor": "^0.52.2",

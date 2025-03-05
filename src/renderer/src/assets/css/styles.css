@@ -23,28 +23,52 @@ html, body, #root {
   width: 100%;
 }
 
+/* Theme-specific styles */
+.theme-one-dark {
+  --bg-color: #282a36;
+  --header-bg: #282a36;
+  --border-color: #30363d;
+  --console-bg: #282a36;
+  --button-bg: #2ea043;
+  --button-hover-bg: #3fb950;
+  --theme-button-bg: #4d4d4d;
+  --theme-button-hover-bg: #6e6e6e;
+}
+
+.theme-dracula {
+  --bg-color: #282a36;
+  --header-bg: #44475a;
+  --border-color: #6272a4;
+  --console-bg: #282a36;
+  --button-bg: #ff79c6;
+  --button-hover-bg: #ff92d0;
+  --theme-button-bg: #bd93f9;
+  --theme-button-hover-bg: #cfa9ff;
+}
+
 .main-content {
   display: flex;
   flex: 1;
   overflow: hidden;
+  background-color: var(--bg-color);
 }
 
 .editor-container {
   flex: 3;
   height: 100%;
   overflow: hidden;
-  background-color: #1e1e1e;
+  background-color: var(--bg-color);
 }
 
 .console-container {
   flex: 2;
   height: 100%;
-  background-color: #1e1e1e;
+  background-color: var(--console-bg);
   color: white;
   padding: 1rem;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   overflow: auto;
-  border-left: 1px solid #30363d;
+  border-left: 1px solid var(--border-color);
 }
 
 /* CodeMirror styles */
@@ -59,7 +83,7 @@ html, body, #root {
 
 .log-item {
   margin-bottom: 8px;
-  border-bottom: 1px solid #30363d;
+  border-bottom: 1px solid var(--border-color);
   padding-bottom: 8px;
   white-space: pre-wrap;
   word-break: break-all;
@@ -82,11 +106,11 @@ html, body, #root {
 }
 
 .log-success {
-  color: #51cf66;
+  color: #50fa7b;
 }
 
 .log-log {
-  color: #e9ecef;
+  color: #f8f8f2;
 }
 
 .header {
@@ -94,8 +118,8 @@ html, body, #root {
   justify-content: space-between;
   align-items: center;
   padding: 10px 15px;
-  background-color: #252526;
-  border-bottom: 1px solid #30363d;
+  background-color: var(--header-bg);
+  border-bottom: 1px solid var(--border-color);
 }
 
 .title {
@@ -103,8 +127,13 @@ html, body, #root {
   font-weight: 600;
 }
 
+.actions {
+  display: flex;
+  gap: 10px;
+}
+
 .button {
-  background-color: #2ea043;
+  background-color: var(--button-bg);
   color: white;
   border: none;
   padding: 6px 12px;
@@ -115,5 +144,20 @@ html, body, #root {
 }
 
 .button:hover {
-  background-color: #3fb950;
+  background-color: var(--button-hover-bg);
+}
+
+.theme-button {
+  background-color: var(--theme-button-bg);
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.theme-button:hover {
+  background-color: var(--theme-button-hover-bg);
 } 

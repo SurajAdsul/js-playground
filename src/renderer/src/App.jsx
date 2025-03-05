@@ -1,9 +1,8 @@
-import { useState, useEffect, useRef } from 'react'
-import CodeMirror from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
-import SplitPane from 'split-pane-react'
-import { MantineProvider, Box, Button, Text } from '@mantine/core'
+import { dracula } from '@uiw/codemirror-theme-dracula'
+import CodeMirror from '@uiw/react-codemirror'
+import { useEffect, useRef, useState } from 'react'
 import 'split-pane-react/esm/themes/default.css'
 
 const defaultCode = `// Write your JavaScript code here
@@ -61,10 +60,25 @@ function parseSerializedData(data) {
   }
 }
 
+// Available themes
+const themes = {
+  oneDark: {
+    name: 'One Dark',
+    theme: oneDark,
+    className: 'theme-one-dark'
+  },
+  dracula: {
+    name: 'Dracula',
+    theme: dracula,
+    className: 'theme-dracula'
+  }
+}
+
 function App() {
   const [code, setCode] = useState(defaultCode)
   const [output, setOutput] = useState([])
   const [sizes, setSizes] = useState([60, 40])
+  const [currentTheme, setCurrentTheme] = useState('dracula')
   const listenersSetupRef = useRef(false)
 
   useEffect(() => {
@@ -128,13 +142,22 @@ function App() {
     }
   }
 
+  const toggleTheme = () => {
+    setCurrentTheme(currentTheme === 'oneDark' ? 'dracula' : 'oneDark')
+  }
+
   return (
-    <div className="app-container">
+    <div className={`app-container ${themes[currentTheme].className}`}>
       <div className="header">
         <div className="title">JS Playground</div>
-        <button onClick={executeCode} className="button">
-          Run Code
-        </button>
+        <div className="actions">
+          <button onClick={toggleTheme} className="theme-button">
+            {themes[currentTheme].name === 'Dracula' ? '🌙' : '☀️'} Theme
+          </button>
+          <button onClick={executeCode} className="button">
+            Run Code
+          </button>
+        </div>
       </div>
       <div className="main-content">
         <div className="editor-container">
@@ -142,7 +165,7 @@ function App() {
             value={code}
             height="100%"
             width="100%"
-            theme={oneDark}
+            theme={themes[currentTheme].theme}
             extensions={[javascript({ jsx: true })]}
             onChange={handleEditorChange}
             basicSetup={{
