@@ -1,5 +1,10 @@
 import { contextBridge, ipcRenderer } from 'electron'
-import { electronAPI } from '@electron-toolkit/preload'
+
+// Clear any existing listeners to prevent duplicates
+ipcRenderer.removeAllListeners('console-log')
+ipcRenderer.removeAllListeners('console-error')
+ipcRenderer.removeAllListeners('console-warn')
+ipcRenderer.removeAllListeners('console-info')
 
 // Custom APIs for renderer
 const api = {}
@@ -11,25 +16,26 @@ if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', {
       ipcRenderer: {
-        send: (channel, ...args) => ipcRenderer.send(channel, ...args)
+        on: (channel, func) => {
+          ipcRenderer.on(channel, func)
+        },
+        once: (channel, func) => {
+          ipcRenderer.once(channel, func)
+        },
+        removeListener: (channel, func) => {
+          ipcRenderer.removeListener(channel, func)
+        },
+        removeAllListeners: (channel) => {
+          ipcRenderer.removeAllListeners(channel)
+        },
+        send: (channel, ...args) => {
+          ipcRenderer.send(channel, ...args)
+        },
+        invoke: (channel, ...args) => {
+          return ipcRenderer.invoke(channel, ...args)
+        }
       },
-      executeCode: (code) => ipcRenderer.invoke('execute-code', code),
-      onConsoleLog: (callback) => {
-        ipcRenderer.on('console-log', (_, args) => callback(args))
-        return () => ipcRenderer.removeListener('console-log', callback)
-      },
-      onConsoleError: (callback) => {
-        ipcRenderer.on('console-error', (_, args) => callback(args))
-        return () => ipcRenderer.removeListener('console-error', callback)
-      },
-      onConsoleWarn: (callback) => {
-        ipcRenderer.on('console-warn', (_, args) => callback(args))
-        return () => ipcRenderer.removeListener('console-warn', callback)
-      },
-      onConsoleInfo: (callback) => {
-        ipcRenderer.on('console-info', (_, args) => callback(args))
-        return () => ipcRenderer.removeListener('console-info', callback)
-      }
+      executeCode: (code) => ipcRenderer.invoke('execute-code', code)
     })
     contextBridge.exposeInMainWorld('api', api)
   } catch (error) {
@@ -38,25 +44,26 @@ if (process.contextIsolated) {
 } else {
   window.electron = {
     ipcRenderer: {
-      send: (channel, ...args) => ipcRenderer.send(channel, ...args)
+      on: (channel, func) => {
+        ipcRenderer.on(channel, func)
+      },
+      once: (channel, func) => {
+        ipcRenderer.once(channel, func)
+      },
+      removeListener: (channel, func) => {
+        ipcRenderer.removeListener(channel, func)
+      },
+      removeAllListeners: (channel) => {
+        ipcRenderer.removeAllListeners(channel)
+      },
+      send: (channel, ...args) => {
+        ipcRenderer.send(channel, ...args)
+      },
+      invoke: (channel, ...args) => {
+        return ipcRenderer.invoke(channel, ...args)
+      }
     },
-    executeCode: (code) => ipcRenderer.invoke('execute-code', code),
-    onConsoleLog: (callback) => {
-      ipcRenderer.on('console-log', (_, args) => callback(args))
-      return () => ipcRenderer.removeListener('console-log', callback)
-    },
-    onConsoleError: (callback) => {
-      ipcRenderer.on('console-error', (_, args) => callback(args))
-      return () => ipcRenderer.removeListener('console-error', callback)
-    },
-    onConsoleWarn: (callback) => {
-      ipcRenderer.on('console-warn', (_, args) => callback(args))
-      return () => ipcRenderer.removeListener('console-warn', callback)
-    },
-    onConsoleInfo: (callback) => {
-      ipcRenderer.on('console-info', (_, args) => callback(args))
-      return () => ipcRenderer.removeListener('console-info', callback)
-    }
+    executeCode: (code) => ipcRenderer.invoke('execute-code', code)
   }
   window.api = api
 }

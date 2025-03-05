@@ -51,6 +51,40 @@ function makeSerializable(obj) {
   return result
 }
 
+// Helper function to stringify objects for console output
+function stringifyForConsole(arg) {
+  if (arg === undefined) return 'undefined'
+  if (arg === null) return 'null'
+  
+  const type = typeof arg
+  
+  if (type === 'string') return arg
+  if (type === 'function') return arg.toString()
+  if (type === 'symbol') return arg.toString()
+  if (type === 'bigint') return arg.toString()
+  
+  if (type !== 'object') return String(arg)
+  
+  if (Array.isArray(arg)) {
+    return `[${arg.map(stringifyForConsole).join(', ')}]`
+  }
+  
+  if (arg instanceof Date) {
+    return arg.toISOString()
+  }
+  
+  if (arg instanceof Error) {
+    return `${arg.name}: ${arg.message}`
+  }
+  
+  // For regular objects
+  try {
+    return JSON.stringify(arg, null, 2)
+  } catch (e) {
+    return '[Object]'
+  }
+}
+
 export function setupIpcHandlers() {
   // Handle code execution
   ipcMain.handle('execute-code', async (event, code) => {
@@ -62,47 +96,23 @@ export function setupIpcHandlers() {
           console: {
             log: (...args) => {
               console.log('Console log from VM:', ...args)
-              const serializedArgs = args.map(arg => {
-                try {
-                  return typeof arg === 'string' ? arg : JSON.stringify(makeSerializable(arg))
-                } catch (e) {
-                  return String(arg)
-                }
-              })
-              event.sender.send('console-log', serializedArgs)
+              const stringifiedArgs = args.map(stringifyForConsole)
+              event.sender.send('console-log', stringifiedArgs)
             },
             error: (...args) => {
               console.error('Console error from VM:', ...args)
-              const serializedArgs = args.map(arg => {
-                try {
-                  return typeof arg === 'string' ? arg : JSON.stringify(makeSerializable(arg))
-                } catch (e) {
-                  return String(arg)
-                }
-              })
-              event.sender.send('console-error', serializedArgs)
+              const stringifiedArgs = args.map(stringifyForConsole)
+              event.sender.send('console-error', stringifiedArgs)
             },
             warn: (...args) => {
               console.warn('Console warn from VM:', ...args)
-              const serializedArgs = args.map(arg => {
-                try {
-                  return typeof arg === 'string' ? arg : JSON.stringify(makeSerializable(arg))
-                } catch (e) {
-                  return String(arg)
-                }
-              })
-              event.sender.send('console-warn', serializedArgs)
+              const stringifiedArgs = args.map(stringifyForConsole)
+              event.sender.send('console-warn', stringifiedArgs)
             },
             info: (...args) => {
               console.info('Console info from VM:', ...args)
-              const serializedArgs = args.map(arg => {
-                try {
-                  return typeof arg === 'string' ? arg : JSON.stringify(makeSerializable(arg))
-                } catch (e) {
-                  return String(arg)
-                }
-              })
-              event.sender.send('console-info', serializedArgs)
+              const stringifiedArgs = args.map(stringifyForConsole)
+              event.sender.send('console-info', stringifiedArgs)
             }
           }
         }

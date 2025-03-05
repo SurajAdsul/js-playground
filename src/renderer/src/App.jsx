@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import CodeMirror from '@uiw/react-codemirror'
 import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
@@ -65,46 +65,42 @@ function App() {
   const [code, setCode] = useState(defaultCode)
   const [output, setOutput] = useState([])
   const [sizes, setSizes] = useState([60, 40])
+  const listenersSetupRef = useRef(false)
 
   useEffect(() => {
+    // Only set up listeners once
+    if (listenersSetupRef.current) return
+    listenersSetupRef.current = true
+
     // Set up console output listeners
-    const logListener = (args) => {
-      const formattedArgs = args.map(arg => parseSerializedData(arg)).join(' ')
-      setOutput(prev => [...prev, { type: 'log', content: formattedArgs }])
+    const logListener = (_, args) => {
+      setOutput(prev => [...prev, { type: 'log', content: args.join(' ') }])
     }
     
-    const errorListener = (args) => {
-      const formattedArgs = args.map(arg => parseSerializedData(arg)).join(' ')
-      setOutput(prev => [...prev, { type: 'error', content: formattedArgs }])
+    const errorListener = (_, args) => {
+      setOutput(prev => [...prev, { type: 'error', content: args.join(' ') }])
     }
     
-    const warnListener = (args) => {
-      const formattedArgs = args.map(arg => parseSerializedData(arg)).join(' ')
-      setOutput(prev => [...prev, { type: 'warn', content: formattedArgs }])
+    const warnListener = (_, args) => {
+      setOutput(prev => [...prev, { type: 'warn', content: args.join(' ') }])
     }
     
-    const infoListener = (args) => {
-      const formattedArgs = args.map(arg => parseSerializedData(arg)).join(' ')
-      setOutput(prev => [...prev, { type: 'info', content: formattedArgs }])
+    const infoListener = (_, args) => {
+      setOutput(prev => [...prev, { type: 'info', content: args.join(' ') }])
     }
 
-    window.electron.onConsoleLog(logListener)
-    window.electron.onConsoleError(errorListener)
-    window.electron.onConsoleWarn(warnListener)
-    window.electron.onConsoleInfo(infoListener)
-
-    // Execute code on startup after a short delay
-    const timer = setTimeout(() => {
-      executeCode()
-    }, 1000)
+    // Set up IPC listeners directly
+    window.electron.ipcRenderer.on('console-log', logListener)
+    window.electron.ipcRenderer.on('console-error', errorListener)
+    window.electron.ipcRenderer.on('console-warn', warnListener)
+    window.electron.ipcRenderer.on('console-info', infoListener)
 
     return () => {
       // Clean up listeners
-      clearTimeout(timer)
-      window.electron.onConsoleLog(() => {})
-      window.electron.onConsoleError(() => {})
-      window.electron.onConsoleWarn(() => {})
-      window.electron.onConsoleInfo(() => {})
+      window.electron.ipcRenderer.removeListener('console-log', logListener)
+      window.electron.ipcRenderer.removeListener('console-error', errorListener)
+      window.electron.ipcRenderer.removeListener('console-warn', warnListener)
+      window.electron.ipcRenderer.removeListener('console-info', infoListener)
     }
   }, [])
 
@@ -119,7 +115,12 @@ function App() {
       if (!result.success) {
         setOutput(prev => [...prev, { type: 'error', content: result.error }])
       } else if (result.result && result.result.type !== 'undefined') {
-        const formattedResult = parseSerializedData(JSON.stringify(result.result))
+        let formattedResult
+        try {
+          formattedResult = JSON.stringify(result.result.value, null, 2)
+        } catch (e) {
+          formattedResult = String(result.result.value)
+        }
         setOutput(prev => [...prev, { type: 'success', content: formattedResult }])
       }
     } catch (error) {
