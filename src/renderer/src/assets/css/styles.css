@@ -1,0 +1,119 @@
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+  background-color: #1e1e1e;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
+}
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.app-container {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100%;
+}
+
+.main-content {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+.editor-container {
+  flex: 3;
+  height: 100%;
+  overflow: hidden;
+  background-color: #1e1e1e;
+}
+
+.console-container {
+  flex: 2;
+  height: 100%;
+  background-color: #1e1e1e;
+  color: white;
+  padding: 1rem;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  overflow: auto;
+  border-left: 1px solid #30363d;
+}
+
+/* CodeMirror styles */
+.cm-editor {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+.cm-scroller {
+  overflow: auto;
+}
+
+.log-item {
+  margin-bottom: 8px;
+  border-bottom: 1px solid #30363d;
+  padding-bottom: 8px;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.log-item:last-child {
+  border-bottom: none;
+}
+
+.log-error {
+  color: #ff6b6b;
+}
+
+.log-warn {
+  color: #ffd43b;
+}
+
+.log-info {
+  color: #4dabf7;
+}
+
+.log-success {
+  color: #51cf66;
+}
+
+.log-log {
+  color: #e9ecef;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 15px;
+  background-color: #252526;
+  border-bottom: 1px solid #30363d;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.button {
+  background-color: #2ea043;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+}
+
+.button:hover {
+  background-color: #3fb950;
+} 
