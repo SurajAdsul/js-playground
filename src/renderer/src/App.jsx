@@ -78,7 +78,7 @@ function App() {
   const [logs, setLogs] = useState([])
   const [currentTheme, setCurrentTheme] = useState('dracula')
   const consoleRef = useRef(null)
-  const [sizes, setSizes] = useState([60, 40])
+  const [sizes, setSizes] = useState([50, 50])
   const listenersSetupRef = useRef(false)
 
   useEffect(() => {
@@ -165,6 +165,8 @@ function App() {
           sizes={sizes}
           onChange={setSizes}
           resizerSize={5}
+          minSize={200}
+          defaultSizes={[50, 50]}
           sashRender={(index, active) => (
             <div className={`sash-custom ${active ? 'active' : ''}`} />
           )}

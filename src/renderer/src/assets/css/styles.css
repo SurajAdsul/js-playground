@@ -95,6 +95,11 @@ html, body, #root {
   width: 100% !important;
 }
 
+/* Ensure panes maintain correct proportions */
+.split-pane-react-pane {
+  min-width: 200px !important;
+}
+
 /* Style the resizer */
 .split-pane-react-splitter-container {
   z-index: 10;
