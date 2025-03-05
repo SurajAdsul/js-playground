@@ -3,6 +3,7 @@ import { oneDark } from '@codemirror/theme-one-dark'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import CodeMirror from '@uiw/react-codemirror'
 import { useEffect, useRef, useState } from 'react'
+import SplitPane, { Pane } from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
 
 const defaultCode = `// Write your JavaScript code here
@@ -16,6 +17,18 @@ console.log('10 + 20 =', result);
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(n => n * 2);
 console.log('Doubled numbers:', doubled);`
+
+// Define themes
+const themes = {
+  'one-dark': {
+    name: 'One Dark',
+    editor: oneDark,
+  },
+  'dracula': {
+    name: 'Dracula',
+    editor: dracula,
+  }
+}
 
 // Helper function to parse serialized data
 function parseSerializedData(data) {
@@ -60,25 +73,12 @@ function parseSerializedData(data) {
   }
 }
 
-// Available themes
-const themes = {
-  oneDark: {
-    name: 'One Dark',
-    theme: oneDark,
-    className: 'theme-one-dark'
-  },
-  dracula: {
-    name: 'Dracula',
-    theme: dracula,
-    className: 'theme-dracula'
-  }
-}
-
 function App() {
   const [code, setCode] = useState(defaultCode)
-  const [output, setOutput] = useState([])
-  const [sizes, setSizes] = useState([60, 40])
+  const [logs, setLogs] = useState([])
   const [currentTheme, setCurrentTheme] = useState('dracula')
+  const consoleRef = useRef(null)
+  const [sizes, setSizes] = useState([60, 40])
   const listenersSetupRef = useRef(false)
 
   useEffect(() => {
@@ -88,19 +88,19 @@ function App() {
 
     // Set up console output listeners
     const logListener = (_, args) => {
-      setOutput(prev => [...prev, { type: 'log', content: args.join(' ') }])
+      setLogs(prev => [...prev, { type: 'log', content: args.join(' ') }])
     }
     
     const errorListener = (_, args) => {
-      setOutput(prev => [...prev, { type: 'error', content: args.join(' ') }])
+      setLogs(prev => [...prev, { type: 'error', content: args.join(' ') }])
     }
     
     const warnListener = (_, args) => {
-      setOutput(prev => [...prev, { type: 'warn', content: args.join(' ') }])
+      setLogs(prev => [...prev, { type: 'warn', content: args.join(' ') }])
     }
     
     const infoListener = (_, args) => {
-      setOutput(prev => [...prev, { type: 'info', content: args.join(' ') }])
+      setLogs(prev => [...prev, { type: 'info', content: args.join(' ') }])
     }
 
     // Set up IPC listeners directly
@@ -123,11 +123,11 @@ function App() {
   }
 
   const executeCode = async () => {
-    setOutput([])
+    setLogs([])
     try {
       const result = await window.electron.executeCode(code)
       if (!result.success) {
-        setOutput(prev => [...prev, { type: 'error', content: result.error }])
+        setLogs(prev => [...prev, { type: 'error', content: result.error }])
       } else if (result.result && result.result.type !== 'undefined') {
         let formattedResult
         try {
@@ -135,73 +135,57 @@ function App() {
         } catch (e) {
           formattedResult = String(result.result.value)
         }
-        setOutput(prev => [...prev, { type: 'success', content: formattedResult }])
+        setLogs(prev => [...prev, { type: 'success', content: formattedResult }])
       }
     } catch (error) {
-      setOutput(prev => [...prev, { type: 'error', content: error.message }])
+      setLogs(prev => [...prev, { type: 'error', content: error.message }])
     }
   }
 
   const toggleTheme = () => {
-    setCurrentTheme(currentTheme === 'oneDark' ? 'dracula' : 'oneDark')
+    setCurrentTheme(currentTheme === 'one-dark' ? 'dracula' : 'one-dark')
   }
 
   return (
-    <div className={`app-container ${themes[currentTheme].className}`}>
+    <div className={`app-container theme-${currentTheme}`}>
       <div className="header">
-        <div className="title">JS Playground</div>
+        <div className="title">JavaScript Playground</div>
         <div className="actions">
-          <button onClick={toggleTheme} className="theme-button">
-            {themes[currentTheme].name === 'Dracula' ? '🌙' : '☀️'} Theme
+          <button className="theme-button" onClick={toggleTheme}>
+            {currentTheme === 'dracula' ? '☀️' : '🌙'}
           </button>
-          <button onClick={executeCode} className="button">
+          <button className="button" onClick={executeCode}>
             Run Code
           </button>
         </div>
       </div>
       <div className="main-content">
-        <div className="editor-container">
-          <CodeMirror
-            value={code}
-            height="100%"
-            width="100%"
-            theme={themes[currentTheme].theme}
-            extensions={[javascript({ jsx: true })]}
-            onChange={handleEditorChange}
-            basicSetup={{
-              lineNumbers: true,
-              highlightActiveLineGutter: true,
-              highlightSpecialChars: true,
-              foldGutter: true,
-              dropCursor: true,
-              allowMultipleSelections: true,
-              indentOnInput: true,
-              syntaxHighlighting: true,
-              bracketMatching: true,
-              closeBrackets: true,
-              autocompletion: true,
-              rectangularSelection: true,
-              crosshairCursor: true,
-              highlightActiveLine: true,
-              highlightSelectionMatches: true,
-              closeBracketsKeymap: true,
-              searchKeymap: true,
-              foldKeymap: true,
-              completionKeymap: true,
-              lintKeymap: true
-            }}
-          />
-        </div>
-        <div className="console-container">
-          {output.map((item, index) => (
-            <div 
-              key={index}
-              className={`log-item log-${item.type}`}
-            >
-              {item.content}
-            </div>
-          ))}
-        </div>
+        <SplitPane
+          split="vertical"
+          sizes={sizes}
+          onChange={setSizes}
+          resizerSize={5}
+          sashRender={(index, active) => (
+            <div className={`sash-custom ${active ? 'active' : ''}`} />
+          )}
+        >
+          <div className="editor-container">
+            <CodeMirror
+              value={code}
+              height="100%"
+              extensions={[javascript({ jsx: true })]}
+              onChange={handleEditorChange}
+              theme={themes[currentTheme].editor}
+            />
+          </div>
+          <div className="console-container" ref={consoleRef}>
+            {logs.map((log, index) => (
+              <div key={index} className={`log-item log-${log.type}`}>
+                {log.content}
+              </div>
+            ))}
+          </div>
+        </SplitPane>
       </div>
     </div>
   )

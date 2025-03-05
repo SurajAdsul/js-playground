@@ -25,50 +25,92 @@ html, body, #root {
 
 /* Theme-specific styles */
 .theme-one-dark {
-  --bg-color: #282a36;
-  --header-bg: #282a36;
-  --border-color: #30363d;
-  --console-bg: #282a36;
-  --button-bg: #2ea043;
-  --button-hover-bg: #3fb950;
-  --theme-button-bg: #4d4d4d;
-  --theme-button-hover-bg: #6e6e6e;
+  --bg-color: #282c34;
+  --header-bg: #21252b;
+  --border-color: #3e4451;
+  --console-bg: #1e2127;
+  --button-bg: #4d78cc;
+  --button-hover-bg: #5a8aee;
+  --theme-button-bg: #c678dd;
+  --theme-button-hover-bg: #d88ee4;
+  --splitter-color: #3e4451;
+  --splitter-hover-color: #4d78cc;
 }
 
 .theme-dracula {
   --bg-color: #282a36;
-  --header-bg: #44475a;
-  --border-color: #6272a4;
-  --console-bg: #282a36;
+  --header-bg: #1e1f29;
+  --border-color: #44475a;
+  --console-bg: #21222c;
   --button-bg: #ff79c6;
   --button-hover-bg: #ff92d0;
   --theme-button-bg: #bd93f9;
   --theme-button-hover-bg: #cfa9ff;
+  --splitter-color: #44475a;
+  --splitter-hover-color: #bd93f9;
 }
 
 .main-content {
   display: flex;
+  flex-direction: column;
   flex: 1;
   overflow: hidden;
   background-color: var(--bg-color);
 }
 
 .editor-container {
-  flex: 3;
   height: 100%;
+  width: 100%;
   overflow: hidden;
   background-color: var(--bg-color);
 }
 
 .console-container {
-  flex: 2;
   height: 100%;
+  width: 100%;
   background-color: var(--console-bg);
   color: white;
   padding: 1rem;
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   overflow: auto;
   border-left: 1px solid var(--border-color);
+}
+
+/* Split pane styles */
+.sash-custom {
+  width: 5px !important;
+  background-color: var(--border-color);
+  cursor: col-resize;
+  transition: background-color 0.2s;
+  z-index: 10;
+}
+
+.sash-custom:hover, .sash-custom.active {
+  background-color: var(--button-bg) !important;
+}
+
+/* Make sure split pane takes full height */
+.split-pane-react {
+  height: 100% !important;
+  width: 100% !important;
+}
+
+/* Style the resizer */
+.split-pane-react-splitter-container {
+  z-index: 10;
+}
+
+.split-pane-react-splitter {
+  background-color: var(--splitter-color) !important;
+  width: 5px !important;
+  transition: background-color 0.2s;
+  border-left: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 0 5px rgba(0, 0, 0, 0.2);
+}
+
+.split-pane-react-splitter:hover {
+  background-color: var(--splitter-hover-color) !important;
 }
 
 /* CodeMirror styles */
