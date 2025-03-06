@@ -106,6 +106,11 @@ function setupWindowIpcHandlers() {
       preferencesWindow.close()
     }
   })
+  
+  // Handle open preferences window request
+  ipcMain.on('open-preferences', () => {
+    createPreferencesWindow()
+  })
 }
 
 // Create application menu
