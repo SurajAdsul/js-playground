@@ -190,66 +190,93 @@ export function setupIpcHandlers(mainWindow) {
   // Execute JavaScript code
   ipcMain.handle('execute-code', async (_, code) => {
     console.log('Main process received code execution request:', code.substring(0, 100) + (code.length > 100 ? '...' : ''))
+    
+    // Capture original console methods before creating the sandbox
+    const originalConsoleLog = console.log;
+    const originalConsoleError = console.error;
+    const originalConsoleWarn = console.warn;
+    const originalConsoleInfo = console.info;
+    
+    // Keep track of the last message sent to avoid duplicates
+    const lastMessages = {
+      log: null,
+      error: null,
+      warn: null,
+      info: null
+    };
+    
     try {
       // Create a sandbox with console methods
       const sandbox = {
         console: {
           log: (...args) => {
-            originalConsoleLog('VM console.log:', ...args)
-            mainWindow.webContents.send('console-log', args.map(stringifyForConsole))
+            const message = args.map(stringifyForConsole).join(' ');
+            // Only send if this message is different from the last one
+            if (message !== lastMessages.log) {
+              lastMessages.log = message;
+              originalConsoleLog('VM console.log:', ...args);
+              mainWindow.webContents.send('console-log', args.map(stringifyForConsole));
+            }
           },
           error: (...args) => {
-            originalConsoleLog('VM console.error:', ...args)
-            mainWindow.webContents.send('console-error', args.map(stringifyForConsole))
+            const message = args.map(stringifyForConsole).join(' ');
+            if (message !== lastMessages.error) {
+              lastMessages.error = message;
+              originalConsoleLog('VM console.error:', ...args);
+              mainWindow.webContents.send('console-error', args.map(stringifyForConsole));
+            }
           },
           warn: (...args) => {
-            originalConsoleLog('VM console.warn:', ...args)
-            mainWindow.webContents.send('console-warn', args.map(stringifyForConsole))
+            const message = args.map(stringifyForConsole).join(' ');
+            if (message !== lastMessages.warn) {
+              lastMessages.warn = message;
+              originalConsoleLog('VM console.warn:', ...args);
+              mainWindow.webContents.send('console-warn', args.map(stringifyForConsole));
+            }
           },
           info: (...args) => {
-            originalConsoleLog('VM console.info:', ...args)
-            mainWindow.webContents.send('console-info', args.map(stringifyForConsole))
+            const message = args.map(stringifyForConsole).join(' ');
+            if (message !== lastMessages.info) {
+              lastMessages.info = message;
+              originalConsoleLog('VM console.info:', ...args);
+              mainWindow.webContents.send('console-info', args.map(stringifyForConsole));
+            }
           }
         },
         // Add require function to load installed packages
         require: (moduleName) => {
           try {
-            const packagesPath = getPackagesPath()
-            const modulePath = path.join(packagesPath, 'node_modules', moduleName)
-            return require(modulePath)
+            const packagesPath = getPackagesPath();
+            const modulePath = path.join(packagesPath, 'node_modules', moduleName);
+            return require(modulePath);
           } catch (error) {
-            throw new Error(`Failed to load module '${moduleName}': ${error.message}`)
+            throw new Error(`Failed to load module '${moduleName}': ${error.message}`);
           }
         }
-      }
+      };
 
-      // Capture original console methods
-      const originalConsoleLog = console.log
-      const originalConsoleError = console.error
-      const originalConsoleWarn = console.warn
-      const originalConsoleInfo = console.info
-
+      // Create a new VM with the sandbox
       const vm = new VM({
         timeout: 5000,
         sandbox: sandbox,
         eval: false,
         wasm: false
-      })
+      });
 
       // Execute the code
-      const result = vm.run(code)
-      originalConsoleLog('VM execution result:', result)
+      const result = vm.run(code);
+      originalConsoleLog('VM execution result:', result);
 
       return {
         success: true,
         result: makeSerializable(result)
-      }
+      };
     } catch (error) {
-      console.error('VM execution error:', error.message)
+      console.error('VM execution error:', error.message);
       return {
         success: false,
         error: error.message
-      }
+      };
     }
   })
 

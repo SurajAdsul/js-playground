@@ -144,40 +144,70 @@ function App() {
   
   // Set up console listeners
   useEffect(() => {
-    if (listenersSetupRef.current) return
+    // Remove any existing listeners to prevent duplicates
+    window.electron.ipcRenderer.removeAllListeners('console-log');
+    window.electron.ipcRenderer.removeAllListeners('console-error');
+    window.electron.ipcRenderer.removeAllListeners('console-warn');
+    window.electron.ipcRenderer.removeAllListeners('console-info');
     
     const logListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'log', content: args.join(' ') }])
-    }
+      // Use a functional update to ensure we're working with the latest state
+      setLogs(prevLogs => {
+        // Only add the log if it's not a duplicate of the last log
+        const lastLog = prevLogs[prevLogs.length - 1];
+        if (lastLog && lastLog.type === 'log' && lastLog.content === args.join(' ')) {
+          return prevLogs; // Skip duplicate
+        }
+        return [...prevLogs, { type: 'log', content: args.join(' ') }];
+      });
+    };
     
     const errorListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'error', content: args.join(' ') }])
-    }
+      setLogs(prevLogs => {
+        const lastLog = prevLogs[prevLogs.length - 1];
+        if (lastLog && lastLog.type === 'error' && lastLog.content === args.join(' ')) {
+          return prevLogs;
+        }
+        return [...prevLogs, { type: 'error', content: args.join(' ') }];
+      });
+    };
     
     const warnListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'warn', content: args.join(' ') }])
-    }
+      setLogs(prevLogs => {
+        const lastLog = prevLogs[prevLogs.length - 1];
+        if (lastLog && lastLog.type === 'warn' && lastLog.content === args.join(' ')) {
+          return prevLogs;
+        }
+        return [...prevLogs, { type: 'warn', content: args.join(' ') }];
+      });
+    };
     
     const infoListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'info', content: args.join(' ') }])
-    }
+      setLogs(prevLogs => {
+        const lastLog = prevLogs[prevLogs.length - 1];
+        if (lastLog && lastLog.type === 'info' && lastLog.content === args.join(' ')) {
+          return prevLogs;
+        }
+        return [...prevLogs, { type: 'info', content: args.join(' ') }];
+      });
+    };
     
-    window.electron.ipcRenderer.on('console-log', logListener)
-    window.electron.ipcRenderer.on('console-error', errorListener)
-    window.electron.ipcRenderer.on('console-warn', warnListener)
-    window.electron.ipcRenderer.on('console-info', infoListener)
+    window.electron.ipcRenderer.on('console-log', logListener);
+    window.electron.ipcRenderer.on('console-error', errorListener);
+    window.electron.ipcRenderer.on('console-warn', warnListener);
+    window.electron.ipcRenderer.on('console-info', infoListener);
     
-    listenersSetupRef.current = true
+    listenersSetupRef.current = true;
     
     return () => {
-      window.electron.ipcRenderer.removeListener('console-log', logListener)
-      window.electron.ipcRenderer.removeListener('console-error', errorListener)
-      window.electron.ipcRenderer.removeListener('console-warn', warnListener)
-      window.electron.ipcRenderer.removeListener('console-info', infoListener)
+      window.electron.ipcRenderer.removeListener('console-log', logListener);
+      window.electron.ipcRenderer.removeListener('console-error', errorListener);
+      window.electron.ipcRenderer.removeListener('console-warn', warnListener);
+      window.electron.ipcRenderer.removeListener('console-info', infoListener);
       
-      listenersSetupRef.current = false
-    }
-  }, [])
+      listenersSetupRef.current = false;
+    };
+  }, []);
   
   // Auto-scroll console
   useEffect(() => {
@@ -192,20 +222,20 @@ function App() {
 
   const executeCode = async () => {
     try {
-      setLogs([{ type: 'info', content: 'Executing code...' }])
-      const result = await window.electron.executeCode(code)
+      // Clear logs and add initial message
+      setLogs([]);
       
-      if (result.success) {
-        if (result.result && result.result.value !== undefined) {
-          setLogs(prev => [...prev, { type: 'result', content: parseSerializedData(JSON.stringify(result.result)) }])
-        }
-      } else {
-        setLogs(prev => [...prev, { type: 'error', content: result.error }])
+      // Execute the code
+      const result = await window.electron.executeCode(code);
+      
+      // Handle the result
+      if (!result.success) {
+        setLogs(prev => [...prev, { type: 'error', content: result.error }]);
       }
     } catch (error) {
-      setLogs(prev => [...prev, { type: 'error', content: error.message }])
+      setLogs(prev => [...prev, { type: 'error', content: error.message }]);
     }
-  }
+  };
 
   const toggleTheme = () => {
     // Toggle between dracula and vs-light
