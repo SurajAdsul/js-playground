@@ -20,7 +20,8 @@
     "build:mac-x64": "npm run build && electron-builder --mac --x64 --config.mac.identity=null",
     "build:mac-arm64": "npm run build && electron-builder --mac --arm64 --config.mac.identity=null",
     "build:mac-universal": "npm run build && electron-builder --mac --universal --config.mac.identity=null",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:linux": "npm run build && electron-builder --linux",
+    "generate-icons": "electron-icon-builder --input=./resources/icon.png --output=./resources/icons --flatten"
   },
   "dependencies": {
     "@codemirror/lang-javascript": "^6.2.3",
@@ -44,6 +45,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "electron": "^34.2.0",
     "electron-builder": "^25.1.8",
+    "electron-icon-builder": "^2.0.1",
     "electron-vite": "^3.0.0",
     "eslint": "^9.20.1",
     "eslint-plugin-react": "^7.37.4",
@@ -62,15 +64,20 @@
       "output": "release/${version}"
     },
     "files": [
-      "out"
+      "out",
+      "resources"
     ],
     "mac": {
       "target": [
         {
           "target": "dmg",
-          "arch": ["x64", "arm64"]
+          "arch": [
+            "x64",
+            "arm64"
+          ]
         }
       ],
+      "icon": "resources/icons/icon.icns",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
       "entitlements": false,
@@ -81,6 +88,7 @@
       "target": [
         "nsis"
       ],
+      "icon": "resources/icons/icon.ico",
       "certificateFile": null,
       "certificatePassword": null,
       "verifyUpdateCodeSignature": false
@@ -88,7 +96,8 @@
     "linux": {
       "target": [
         "AppImage"
-      ]
+      ],
+      "icon": "resources/icons"
     }
   }
 }

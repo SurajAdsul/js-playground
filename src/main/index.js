@@ -1,11 +1,19 @@
 import { app, shell, BrowserWindow, Menu, ipcMain } from 'electron'
-import { join } from 'path'
+import { join, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
-import icon from '../../resources/icon.png?asset'
+// Replace the import with a direct path
 import { setupIpcHandlers } from './ipc'
+
+// Get the path to the icon
+const iconPath = resolve(__dirname, '../../resources/icon.png')
 
 let mainWindow = null
 let preferencesWindow = null
+
+// Set dock icon for macOS
+if (process.platform === 'darwin') {
+  app.dock.setIcon(iconPath)
+}
 
 function createWindow() {
   // Create the browser window.
@@ -14,7 +22,7 @@ function createWindow() {
     height: 800,
     show: false,
     autoHideMenuBar: false,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    ...(process.platform === 'linux' ? { icon: iconPath } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
@@ -22,6 +30,9 @@ function createWindow() {
       contextIsolation: true
     }
   })
+
+  // Set icon for all platforms
+  mainWindow.setIcon(iconPath)
 
   setupIpcHandlers(mainWindow)
 
@@ -59,6 +70,7 @@ function createPreferencesWindow() {
     show: false,
     resizable: false,
     minimizable: false,
+    icon: iconPath,
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
