@@ -7,6 +7,7 @@ import SplitPane from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
 import PackageManager from './components/PackageManager'
 import ErrorBoundary from './components/ErrorBoundary'
+import { materialOcean } from './themes/materialOcean'
 
 const defaultCode = `// Write your JavaScript code here
 console.log('Hello, World!');
@@ -34,6 +35,10 @@ const themes = {
   'dracula': {
     name: 'Dracula',
     editor: dracula,
+  },
+  'material-ocean': {
+    name: 'Material Ocean',
+    editor: materialOcean,
   }
 }
 
@@ -198,10 +203,8 @@ function App() {
   }
 
   const toggleTheme = () => {
-    const themes = ['dracula', 'one-dark']
-    const currentIndex = themes.indexOf(currentTheme)
-    const nextIndex = (currentIndex + 1) % themes.length
-    const newTheme = themes[nextIndex]
+    // Only toggle between dracula and one-dark
+    const newTheme = currentTheme === 'one-dark' ? 'dracula' : 'one-dark'
     
     setCurrentTheme(newTheme)
     

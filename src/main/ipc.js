@@ -139,6 +139,9 @@ const defaultPreferences = {
   theme: 'dracula'
 }
 
+// Valid theme options
+const validThemes = ['dracula', 'one-dark', 'material-ocean']
+
 // Load preferences from file
 const loadPreferences = () => {
   const prefsPath = getUserDataPath()
@@ -147,6 +150,13 @@ const loadPreferences = () => {
       const data = fs.readFileSync(prefsPath, 'utf8')
       console.log('Loading preferences from file:', data)
       const prefs = JSON.parse(data)
+      
+      // Validate theme
+      if (prefs.theme && !validThemes.includes(prefs.theme)) {
+        console.warn(`Invalid theme: ${prefs.theme}, defaulting to dracula`)
+        prefs.theme = 'dracula'
+      }
+      
       return prefs
     }
   } catch (error) {
