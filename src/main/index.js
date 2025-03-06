@@ -8,7 +8,6 @@ import { setupIpcHandlers } from './ipc'
 const iconPath = resolve(__dirname, '../../resources/icon.png')
 
 let mainWindow = null
-let preferencesWindow = null
 
 // Set dock icon for macOS
 if (process.platform === 'darwin') {
@@ -26,7 +25,7 @@ function createWindow() {
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
       sandbox: false,
-      nodeIntegration: true,
+      nodeIntegration: false,
       contextIsolation: true
     }
   })
@@ -55,62 +54,9 @@ function createWindow() {
   }
 }
 
-// Create preferences window
-function createPreferencesWindow() {
-  if (preferencesWindow) {
-    preferencesWindow.focus()
-    return
-  }
-
-  preferencesWindow = new BrowserWindow({
-    width: 500,
-    height: 400,
-    title: 'Preferences',
-    parent: mainWindow,
-    modal: true,
-    show: false,
-    resizable: false,
-    minimizable: false,
-    icon: iconPath,
-    webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
-      sandbox: false,
-      nodeIntegration: true,
-      contextIsolation: true
-    }
-  })
-
-  preferencesWindow.on('ready-to-show', () => {
-    preferencesWindow.show()
-  })
-
-  preferencesWindow.on('closed', () => {
-    preferencesWindow = null
-  })
-
-  // Load the preferences HTML file
-  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-    preferencesWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/#/preferences`)
-  } else {
-    preferencesWindow.loadFile(join(__dirname, '../renderer/index.html'), {
-      hash: 'preferences'
-    })
-  }
-}
-
 // Setup IPC handlers for window management
 function setupWindowIpcHandlers() {
-  // Handle close preferences window request
-  ipcMain.on('close-preferences', () => {
-    if (preferencesWindow) {
-      preferencesWindow.close()
-    }
-  })
-  
-  // Handle open preferences window request
-  ipcMain.on('open-preferences', () => {
-    createPreferencesWindow()
-  })
+  // No need for preferences window handlers anymore
 }
 
 // Create application menu
@@ -162,7 +108,7 @@ function createMenu() {
           label: 'Preferences',
           accelerator: 'CmdOrCtrl+,',
           click: () => {
-            createPreferencesWindow()
+            mainWindow.webContents.send('open-preferences-in-app')
           }
         }
       ]
@@ -173,7 +119,8 @@ function createMenu() {
         {
           label: 'Learn More',
           click: async () => {
-            await shell.openExternal('https://github.com/yourusername/js-playground')
+            const { shell } = require('electron')
+            await shell.openExternal('https://electronjs.org')
           }
         }
       ]
@@ -198,9 +145,23 @@ app.whenReady().then(() => {
     optimizer.watchWindowShortcuts(window)
   })
 
-  createWindow()
-  createMenu()
+  // Set up IPC handlers before creating windows
   setupWindowIpcHandlers()
+  
+  // Create main window
+  createWindow()
+  
+  // Create menu
+  createMenu()
+
+  // Log app paths for debugging
+  console.log('App paths:')
+  console.log('- __dirname:', __dirname)
+  console.log('- App path:', app.getAppPath())
+  console.log('- User data path:', app.getPath('userData'))
+  console.log('- Temp path:', app.getPath('temp'))
+  console.log('- Exe path:', app.getPath('exe'))
+  console.log('- Module paths:', module.paths)
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

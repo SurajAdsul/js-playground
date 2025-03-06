@@ -8,6 +8,115 @@ import { promisify } from 'util'
 
 const execAsync = promisify(exec)
 
+// Helper function to find npm executable
+const findNpmExecutable = async () => {
+  // Try to use npm from the PATH first
+  try {
+    // Use different commands based on the platform
+    const command = process.platform === 'win32' ? 'where npm' : 'which npm'
+    const { stdout } = await execAsync(command)
+    if (stdout && stdout.trim()) {
+      return stdout.trim()
+    }
+  } catch (error) {
+    console.log(`Could not find npm in PATH using platform-specific command: ${error.message}`)
+  }
+
+  // Fallback paths based on common npm locations and platform
+  let possiblePaths = []
+  
+  if (process.platform === 'darwin') {
+    // macOS paths
+    possiblePaths = [
+      '/usr/local/bin/npm',
+      '/usr/bin/npm',
+      '/opt/homebrew/bin/npm',
+      path.join(process.env.HOME || '', '.nvm/versions/node/*/bin/npm'),
+      path.join(process.env.HOME || '', '.npm/bin/npm')
+    ]
+  } else if (process.platform === 'win32') {
+    // Windows paths
+    possiblePaths = [
+      path.join(process.env.APPDATA || '', 'npm/npm.cmd'),
+      path.join(process.env.ProgramFiles || '', 'nodejs/npm.cmd'),
+      path.join(process.env['ProgramFiles(x86)'] || '', 'nodejs/npm.cmd')
+    ]
+  } else {
+    // Linux paths
+    possiblePaths = [
+      '/usr/local/bin/npm',
+      '/usr/bin/npm',
+      path.join(process.env.HOME || '', '.nvm/versions/node/*/bin/npm'),
+      path.join(process.env.HOME || '', '.npm/bin/npm')
+    ]
+  }
+
+  for (const npmPath of possiblePaths) {
+    try {
+      // Handle glob patterns for nvm-style paths
+      if (npmPath.includes('*')) {
+        // For simplicity, we'll just check if the parent directory exists
+        const parentDir = npmPath.substring(0, npmPath.indexOf('*') - 1)
+        if (fs.existsSync(parentDir)) {
+          // Try to find the latest version
+          try {
+            const { stdout } = await execAsync(`find ${parentDir} -name npm -type f | sort -r | head -1`)
+            if (stdout && stdout.trim()) {
+              return stdout.trim()
+            }
+          } catch (e) {
+            console.log(`Error finding npm in ${parentDir}:`, e.message)
+          }
+        }
+      } else if (fs.existsSync(npmPath)) {
+        return npmPath
+      }
+    } catch (error) {
+      // Ignore errors and try next path
+    }
+  }
+
+  // If we can't find npm, we'll use a bundled npm package
+  return null
+}
+
+// Helper function to find node executable
+const findNodeExecutable = async () => {
+  // Try to use node from the PATH first
+  try {
+    const command = process.platform === 'win32' ? 'where node' : 'which node'
+    const { stdout } = await execAsync(command)
+    if (stdout && stdout.trim()) {
+      return stdout.trim()
+    }
+  } catch (error) {
+    console.log(`Could not find node in PATH: ${error.message}`)
+  }
+
+  // Fallback paths based on common node locations
+  const possiblePaths = process.platform === 'darwin' ? [
+    '/usr/local/bin/node',
+    '/usr/bin/node',
+    '/opt/homebrew/bin/node',
+    process.execPath // Use Electron's bundled Node.js as last resort
+  ] : process.platform === 'win32' ? [
+    path.join(process.env.ProgramFiles || '', 'nodejs/node.exe'),
+    path.join(process.env['ProgramFiles(x86)'] || '', 'nodejs/node.exe')
+  ] : [
+    '/usr/local/bin/node',
+    '/usr/bin/node'
+  ]
+
+  for (const nodePath of possiblePaths) {
+    if (fs.existsSync(nodePath)) {
+      return nodePath
+    }
+  }
+
+  // If we can't find node, return Electron's bundled Node.js
+  return process.execPath
+}
+
 // Helper function to make objects serializable
 function makeSerializable(obj) {
   if (obj === null || obj === undefined) {
@@ -186,6 +295,201 @@ const savePreferences = (preferences, mainWindow) => {
   }
 }
 
+// Install a package
+const installPackage = async (packagesPath, packageName, version) => {
+  const packageToInstall = version ? `${packageName}@${version}` : packageName
+  
+  console.log('Creating package.json if it doesn\'t exist')
+  const packageJsonPath = path.join(packagesPath, 'package.json')
+  
+  // Read or create package.json
+  let packageJson
+  try {
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+  } catch (e) {
+    packageJson = {
+      name: 'js-playground-packages',
+      version: '1.0.0',
+      description: 'Packages for JavaScript Playground',
+      dependencies: {}
+    }
+  }
+  
+  // Update package.json with the new dependency
+  packageJson.dependencies = packageJson.dependencies || {}
+  packageJson.dependencies[packageName] = version || 'latest'
+  
+  // Write updated package.json
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+  console.log(`Updated package.json with ${packageName}@${version || 'latest'}`)
+  
+  // Create node_modules directory if it doesn't exist
+  const nodeModulesPath = path.join(packagesPath, 'node_modules')
+  if (!fs.existsSync(nodeModulesPath)) {
+    fs.mkdirSync(nodeModulesPath, { recursive: true })
+  }
+
+  // Try to find npm and node executables
+  const [npmPath, nodePath] = await Promise.all([
+    findNpmExecutable(),
+    findNodeExecutable()
+  ])
+  
+  if (!npmPath) {
+    throw new Error('Could not find npm executable')
+  }
+
+  if (!nodePath) {
+    throw new Error('Could not find node executable')
+  }
+
+  // Use npm to install the package with explicit node path
+  console.log(`Using npm from: ${npmPath} with node from: ${nodePath}`)
+  try {
+    // Set NODE_PATH environment variable
+    const env = {
+      ...process.env,
+      NODE: nodePath,
+      PATH: `${path.dirname(nodePath)}${path.delimiter}${process.env.PATH}`
+    }
+
+    const { stdout, stderr } = await execAsync(`"${npmPath}" install ${packageToInstall}`, {
+      cwd: packagesPath,
+      env
+    })
+    console.log('Package installation stdout:', stdout)
+    if (stderr) console.error('Package installation stderr:', stderr)
+    return { stdout, stderr }
+  } catch (error) {
+    console.error(`Error installing package:`, error)
+    throw error
+  }
+}
+
+// Uninstall a package
+const uninstallPackage = async (packagesPath, packageName) => {
+  // Try to find npm executable
+  const npmPath = await findNpmExecutable()
+  
+  if (npmPath) {
+    // Use the found npm executable
+    console.log(`Using npm from: ${npmPath}`)
+    try {
+      const { stdout, stderr } = await execAsync(`"${npmPath}" uninstall ${packageName}`, {
+        cwd: packagesPath
+      })
+      return { stdout, stderr }
+    } catch (error) {
+      console.error(`Error using npm at ${npmPath}:`, error)
+      // Fall through to the fallback method
+    }
+  }
+  
+  // Fallback to using a programmatic approach
+  console.log('Using programmatic npm uninstallation')
+  
+  // Instead of creating a script file and executing it with node,
+  // we'll directly implement the uninstallation logic
+  try {
+    console.log('Reading package.json')
+    const packageJsonPath = path.join(packagesPath, 'package.json')
+    
+    // Read package.json
+    let packageJson
+    try {
+      packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      
+      // Remove the dependency from package.json
+      if (packageJson.dependencies && packageJson.dependencies[packageName]) {
+        delete packageJson.dependencies[packageName]
+        
+        // Write updated package.json
+        fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
+        console.log(`Removed ${packageName} from package.json`)
+      }
+    } catch (e) {
+      console.error('Error updating package.json:', e.message)
+    }
+    
+    // Try to remove the module directory
+    const modulePath = path.join(packagesPath, 'node_modules', packageName)
+    if (fs.existsSync(modulePath)) {
+      try {
+        // Use the appropriate method to delete the directory based on platform
+        if (process.platform === 'win32') {
+          // On Windows, use a recursive directory deletion function
+          const deleteFolderRecursive = function(dirPath) {
+            if (fs.existsSync(dirPath)) {
+              fs.readdirSync(dirPath).forEach((file) => {
+                const curPath = path.join(dirPath, file)
+                if (fs.lstatSync(curPath).isDirectory()) {
+                  // Recursive call
+                  deleteFolderRecursive(curPath)
+                } else {
+                  // Delete file
+                  fs.unlinkSync(curPath)
+                }
+              })
+              fs.rmdirSync(dirPath)
+            }
+          }
+          deleteFolderRecursive(modulePath)
+        } else {
+          // On Unix-like systems, try using child_process
+          try {
+            const childProcess = require('child_process')
+            childProcess.execSync(`rm -rf "${modulePath}"`, { stdio: 'inherit' })
+          } catch (rmError) {
+            console.error('Error removing module directory with child_process:', rmError.message)
+            // Fallback to a recursive deletion function
+            const deleteFolderRecursive = function(dirPath) {
+              if (fs.existsSync(dirPath)) {
+                fs.readdirSync(dirPath).forEach((file) => {
+                  const curPath = path.join(dirPath, file)
+                  if (fs.lstatSync(curPath).isDirectory()) {
+                    // Recursive call
+                    deleteFolderRecursive(curPath)
+                  } else {
+                    // Delete file
+                    fs.unlinkSync(curPath)
+                  }
+                })
+                fs.rmdirSync(dirPath)
+              }
+            }
+            deleteFolderRecursive(modulePath)
+          }
+        }
+        console.log(`Removed module directory: ${modulePath}`)
+      } catch (rmError) {
+        console.error('Error removing module directory:', rmError.message)
+      }
+    }
+    
+    // Try one more approach - use the built-in require('child_process') directly
+    try {
+      console.log('Attempting to use child_process directly')
+      const childProcess = require('child_process')
+      childProcess.execSync(`npm uninstall ${packageName}`, {
+        cwd: packagesPath,
+        stdio: 'inherit'
+      })
+      console.log('Successfully uninstalled using child_process')
+    } catch (childProcessError) {
+      console.error('child_process approach failed:', childProcessError.message)
+      // Continue with the manual approach
+    }
+    
+    return {
+      stdout: `Removed ${packageName}. Please restart the application for the changes to take effect.`,
+      stderr: ''
+    }
+  } catch (error) {
+    console.error('Error in programmatic uninstallation:', error)
+    throw error
+  }
+}
+
 export function setupIpcHandlers(mainWindow) {
   // Execute JavaScript code
   ipcMain.handle('execute-code', async (_, code) => {
@@ -248,8 +552,23 @@ export function setupIpcHandlers(mainWindow) {
           try {
             const packagesPath = getPackagesPath();
             const modulePath = path.join(packagesPath, 'node_modules', moduleName);
-            return require(modulePath);
+            
+            // Check if the module exists
+            if (!fs.existsSync(modulePath)) {
+              throw new Error(`Module '${moduleName}' not found. Please install it first.`);
+            }
+            
+            // Try to load the module
+            const loadedModule = require(modulePath);
+            
+            // Verify the module was loaded properly
+            if (!loadedModule) {
+              throw new Error(`Failed to load module '${moduleName}': Module is empty`);
+            }
+            
+            return loadedModule;
           } catch (error) {
+            console.error(`Error loading module '${moduleName}':`, error);
             throw new Error(`Failed to load module '${moduleName}': ${error.message}`);
           }
         }
@@ -324,13 +643,8 @@ export function setupIpcHandlers(mainWindow) {
         message: `Installing ${packageName}${version ? `@${version}` : ''}...`
       })
       
-      // Construct the package name with version if provided
-      const packageToInstall = version ? `${packageName}@${version}` : packageName
-      
-      // Run npm install
-      const { stdout, stderr } = await execAsync(`npm install ${packageToInstall}`, {
-        cwd: packagesPath
-      })
+      // Install the package using our enhanced installation function
+      const { stdout, stderr } = await installPackage(packagesPath, packageName, version)
       
       console.log(`Package installation stdout: ${stdout}`)
       if (stderr) console.error(`Package installation stderr: ${stderr}`)
@@ -381,10 +695,8 @@ export function setupIpcHandlers(mainWindow) {
         message: `Uninstalling ${packageName}...`
       })
       
-      // Run npm uninstall
-      const { stdout, stderr } = await execAsync(`npm uninstall ${packageName}`, {
-        cwd: packagesPath
-      })
+      // Uninstall the package using our enhanced uninstallation function
+      const { stdout, stderr } = await uninstallPackage(packagesPath, packageName)
       
       console.log(`Package uninstallation stdout: ${stdout}`)
       if (stderr) console.error(`Package uninstallation stderr: ${stderr}`)

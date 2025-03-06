@@ -37,24 +37,32 @@ if (process.contextIsolated) {
         },
         // Receive
         on: (channel, func) => {
-          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status']
+          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status', 'open-preferences-in-app']
           if (validChannels.includes(channel)) {
             ipcRenderer.on(channel, func)
           }
         },
         // Remove listener
         removeListener: (channel, func) => {
-          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status']
+          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status', 'open-preferences-in-app']
           if (validChannels.includes(channel)) {
             ipcRenderer.removeListener(channel, func)
           }
         },
         // Remove all listeners
         removeAllListeners: (channel) => {
-          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status']
+          const validChannels = ['console-log', 'console-error', 'console-warn', 'console-info', 'new-file', 'preferences-changed', 'package-install-status', 'open-preferences-in-app']
           if (validChannels.includes(channel)) {
             ipcRenderer.removeAllListeners(channel)
           }
+        },
+        // Invoke
+        invoke: (channel, ...args) => {
+          const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync']
+          if (validChannels.includes(channel)) {
+            return ipcRenderer.invoke(channel, ...args)
+          }
+          return Promise.reject(new Error(`Invalid channel: ${channel}`))
         }
       },
       // Execute code
@@ -99,10 +107,18 @@ if (process.contextIsolated) {
         ipcRenderer.removeAllListeners(channel)
       },
       send: (channel, ...args) => {
-        ipcRenderer.send(channel, ...args)
+        const validChannels = ['close-preferences', 'open-preferences']
+        // Also allow any channel that starts with 'console-'
+        if (validChannels.includes(channel) || channel.startsWith('console-')) {
+          ipcRenderer.send(channel, ...args)
+        }
       },
       invoke: (channel, ...args) => {
-        return ipcRenderer.invoke(channel, ...args)
+        const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync']
+        if (validChannels.includes(channel)) {
+          return ipcRenderer.invoke(channel, ...args)
+        }
+        return Promise.reject(new Error(`Invalid channel: ${channel}`))
       }
     },
     executeCode: (code) => ipcRenderer.invoke('execute-code', code),

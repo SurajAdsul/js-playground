@@ -1,28 +1,24 @@
 import { useState, useEffect } from 'react'
 import './assets/css/preferences.css'
 
-function Preferences() {
-  const [preferences, setPreferences] = useState({
+function Preferences({ initialPreferences, currentTheme, onClose, onSave }) {
+  const [preferences, setPreferences] = useState(initialPreferences || {
     fontSize: 16,
     autocomplete: true,
     theme: 'dracula'
   })
   const [isSaved, setIsSaved] = useState(false)
 
-  // Load preferences on component mount
+  // Log component mount for debugging
   useEffect(() => {
-    const loadPreferences = async () => {
-      try {
-        const prefs = await window.electron.preferences.get()
-        console.log('Preferences component loaded prefs:', prefs)
-        setPreferences(prefs)
-      } catch (error) {
-        console.error('Error loading preferences:', error)
-      }
-    }
-
-    loadPreferences()
-  }, [])
+    console.log('Preferences component mounted as modal');
+    console.log('Initial preferences:', initialPreferences);
+    console.log('Current theme:', currentTheme);
+    
+    return () => {
+      console.log('Preferences component unmounted');
+    };
+  }, [initialPreferences, currentTheme]);
 
   // Handle input changes
   const handleChange = (e) => {
@@ -54,27 +50,30 @@ function Preferences() {
     setIsSaved(false)
   }
 
-  // Save preferences and close window
+  // Save preferences
   const savePreferences = async () => {
     try {
       console.log('Saving preferences:', preferences)
-      const result = await window.electron.preferences.save(preferences)
-      console.log('Save result:', result)
       setIsSaved(true)
       
-      // Close the preferences window
-      window.electron.ipcRenderer.send('close-preferences')
+      // Call the onSave callback
+      if (onSave) {
+        onSave(preferences)
+      }
     } catch (error) {
       console.error('Error saving preferences:', error)
     }
   }
 
-  // Save preferences and close window
+  // Save preferences and close
   const saveAndClosePreferences = async () => {
     try {
-      console.log('Saving and closing with preferences:', preferences)
-      await window.electron.preferences.save(preferences)
-      window.electron.ipcRenderer.send('close-preferences')
+      await savePreferences()
+      
+      // Call the onClose callback
+      if (onClose) {
+        onClose()
+      }
     } catch (error) {
       console.error('Error saving preferences:', error)
     }
@@ -83,19 +82,26 @@ function Preferences() {
   // Reset preferences to default
   const resetPreferences = async () => {
     try {
-      await window.electron.preferences.reset()
-      const prefs = await window.electron.preferences.get()
-      console.log('Reset to default preferences:', prefs)
-      setPreferences(prefs)
+      const defaultPrefs = {
+        fontSize: 16,
+        autocomplete: true,
+        theme: 'dracula'
+      }
+      
+      setPreferences(defaultPrefs)
       setIsSaved(true)
-      setTimeout(() => setIsSaved(false), 2000)
+      
+      // Call the onSave callback with default preferences
+      if (onSave) {
+        onSave(defaultPrefs)
+      }
     } catch (error) {
       console.error('Error resetting preferences:', error)
     }
   }
 
   return (
-    <div className="preferences-container">
+    <div className={`preferences-container theme-${currentTheme}`}>
       <h2>Preferences</h2>
       
       <div className="preference-section">
@@ -147,6 +153,7 @@ function Preferences() {
         {isSaved && <span className="save-message">Preferences saved!</span>}
         <button onClick={resetPreferences} className="reset-button">Reset to Default</button>
         <button onClick={saveAndClosePreferences} className="save-button">Save & Close</button>
+        <button onClick={onClose} className="cancel-button">Cancel</button>
       </div>
     </div>
   )

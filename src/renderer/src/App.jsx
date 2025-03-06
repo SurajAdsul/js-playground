@@ -9,6 +9,7 @@ import PackageManager from './components/PackageManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import { materialOcean } from './themes/materialOcean'
 import { vsLight } from './themes/vsLight'
+import Preferences from './Preferences'
 
 const defaultCode = `// Write your JavaScript code here
 console.log('Hello, World!');
@@ -92,12 +93,15 @@ function App() {
   const consoleRef = useRef(null)
   const [sizes, setSizes] = useState([50, 50])
   const listenersSetupRef = useRef(false)
+  const [isExecuting, setIsExecuting] = useState(false)
+  const logsRef = useRef([])
   const [preferences, setPreferences] = useState({
     fontSize: 16,
     autocomplete: true,
     theme: 'dracula'
   })
   const [showPackageManager, setShowPackageManager] = useState(false)
+  const [showPreferences, setShowPreferences] = useState(false)
 
   // Load preferences on component mount
   useEffect(() => {
@@ -254,8 +258,26 @@ function App() {
   }
   
   const openPreferences = () => {
-    // Send a message to the main process to open the preferences window
-    window.electron.ipcRenderer.send('open-preferences')
+    console.log('Opening preferences modal');
+    setShowPreferences(true);
+  }
+
+  const closePreferences = () => {
+    console.log('Closing preferences modal');
+    setShowPreferences(false);
+  }
+
+  const savePreferences = (newPreferences) => {
+    console.log('Saving preferences:', newPreferences);
+    setPreferences(newPreferences);
+    setCurrentTheme(newPreferences.theme);
+    window.electron.preferences.save(newPreferences)
+      .then(() => {
+        console.log('Preferences saved successfully');
+      })
+      .catch(error => {
+        console.error('Error saving preferences:', error);
+      });
   }
 
   const getEditorExtensions = () => {
@@ -267,16 +289,59 @@ function App() {
     setShowPackageManager(prev => !prev)
   }
 
+  // Keep logsRef in sync with logs state
+  useEffect(() => {
+    logsRef.current = logs
+  }, [logs])
+  
+  // Expose current theme to window object for IPC communication
+  useEffect(() => {
+    window.getCurrentTheme = () => currentTheme;
+    return () => {
+      delete window.getCurrentTheme;
+    };
+  }, [currentTheme]);
+
+  // Listen for open-preferences-from-menu event
+  useEffect(() => {
+    const handleOpenPreferencesFromMenu = () => {
+      console.log('Received open-preferences-from-menu event');
+      setShowPreferences(true);
+    };
+    
+    window.electron.ipcRenderer.on('open-preferences-from-menu', handleOpenPreferencesFromMenu);
+    
+    return () => {
+      window.electron.ipcRenderer.removeListener('open-preferences-from-menu', handleOpenPreferencesFromMenu);
+    };
+  }, []);
+
+  // Listen for open-preferences-in-app event
+  useEffect(() => {
+    const handleOpenPreferences = () => {
+      console.log('Received open-preferences-in-app event');
+      setShowPreferences(true);
+    };
+    
+    window.electron.ipcRenderer.on('open-preferences-in-app', handleOpenPreferences);
+    
+    return () => {
+      window.electron.ipcRenderer.removeListener('open-preferences-in-app', handleOpenPreferences);
+    };
+  }, []);
+
+  // Set up the clear-console listener
+
   return (
     <div className={`app-container theme-${currentTheme}`}>
       <div className="header">
         <div className="title">JavaScript Playground</div>
         <div className="actions">
-          <button className="theme-button" onClick={toggleTheme}>
+          {/* <button className="theme-button" onClick={toggleTheme}>
             {currentTheme === 'dracula' || currentTheme === 'material-ocean' || currentTheme === 'one-dark' ? '☀️' : '🌙'}
-          </button>
-          <button className="button" onClick={executeCode}>
-            Run Code
+          </button> */}
+          <button className="button" onClick={executeCode} disabled={isExecuting}>
+            {isExecuting ? 'Running...' : 'Run Code'}
           </button>
           <button className="button" onClick={togglePackageManager}>
             Packages
@@ -349,7 +414,23 @@ function App() {
       
       {showPackageManager && (
         <ErrorBoundary>
-          <PackageManager onClose={togglePackageManager} />
+          <PackageManager 
+            onClose={togglePackageManager} 
+            currentTheme={currentTheme} 
+          />
+        </ErrorBoundary>
+      )}
+      
+      {showPreferences && (
+        <ErrorBoundary>
+          <div className="modal-overlay">
+            <Preferences 
+              initialPreferences={preferences}
+              currentTheme={currentTheme}
+              onClose={closePreferences}
+              onSave={savePreferences}
+            />
+          </div>
         </ErrorBoundary>
       )}
     </div>
