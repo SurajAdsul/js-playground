@@ -8,6 +8,7 @@ import 'split-pane-react/esm/themes/default.css'
 import PackageManager from './components/PackageManager'
 import ErrorBoundary from './components/ErrorBoundary'
 import { materialOcean } from './themes/materialOcean'
+import { vsLight } from './themes/vsLight'
 
 const defaultCode = `// Write your JavaScript code here
 console.log('Hello, World!');
@@ -39,6 +40,10 @@ const themes = {
   'material-ocean': {
     name: 'Material Ocean',
     editor: materialOcean,
+  },
+  'vs-light': {
+    name: 'Visual Studio Light',
+    editor: vsLight,
   }
 }
 
@@ -203,8 +208,8 @@ function App() {
   }
 
   const toggleTheme = () => {
-    // Only toggle between dracula and one-dark
-    const newTheme = currentTheme === 'one-dark' ? 'dracula' : 'one-dark'
+    // Toggle between dracula and vs-light
+    const newTheme = currentTheme === 'vs-light' ? 'dracula' : 'vs-light'
     
     setCurrentTheme(newTheme)
     
@@ -238,7 +243,7 @@ function App() {
         <div className="title">JavaScript Playground</div>
         <div className="actions">
           <button className="theme-button" onClick={toggleTheme}>
-            {currentTheme === 'dracula' ? '☀️' : '🌙'}
+            {currentTheme === 'dracula' || currentTheme === 'material-ocean' || currentTheme === 'one-dark' ? '☀️' : '🌙'}
           </button>
           <button className="button" onClick={executeCode}>
             Run Code
