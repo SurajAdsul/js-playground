@@ -29,10 +29,10 @@ html, body, #root {
   --header-bg: #21252b;
   --border-color: #3e4451;
   --console-bg: #1e2127;
-  --button-bg: #4d78cc;
-  --button-hover-bg: #5a8aee;
-  --theme-button-bg: #c678dd;
-  --theme-button-hover-bg: #d88ee4;
+  --button-bg: #4d5666;
+  --button-hover-bg: #5a6477;
+  --theme-button-bg: #4d5666;
+  --theme-button-hover-bg: #5a6477;
   --splitter-color: #3e4451;
   --splitter-hover-color: #4d78cc;
 }
@@ -42,12 +42,25 @@ html, body, #root {
   --header-bg: #1e1f29;
   --border-color: #44475a;
   --console-bg: #21222c;
-  --button-bg: #ff79c6;
-  --button-hover-bg: #ff92d0;
-  --theme-button-bg: #bd93f9;
-  --theme-button-hover-bg: #cfa9ff;
+  --button-bg: #44475a;
+  --button-hover-bg: #6272a4;
+  --theme-button-bg: #44475a;
+  --theme-button-hover-bg: #6272a4;
   --splitter-color: #44475a;
   --splitter-hover-color: #bd93f9;
+}
+
+.theme-material-ocean {
+  --bg-color: #0F111A;
+  --header-bg: #090B10;
+  --border-color: #1F2233;
+  --console-bg: #090B10;
+  --button-bg: #3A3F58;
+  --button-hover-bg: #4A5173;
+  --theme-button-bg: #3A3F58;
+  --theme-button-hover-bg: #4A5173;
+  --splitter-color: #1F2233;
+  --splitter-hover-color: #80CBC4;
 }
 
 .main-content {
@@ -189,34 +202,59 @@ html, body, #root {
 .actions {
   display: flex;
   gap: 10px;
+  align-items: center;
 }
 
 .button {
   background-color: var(--button-bg);
   color: white;
   border: none;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .button:hover {
   background-color: var(--button-hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 }
 
 .theme-button {
   background-color: var(--theme-button-bg);
   color: white;
   border: none;
-  padding: 6px 12px;
+  padding: 8px 14px;
   border-radius: 4px;
   cursor: pointer;
   font-size: 14px;
   font-weight: 500;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .theme-button:hover {
   background-color: var(--theme-button-hover-bg);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.15);
+}
+
+.theme-button:active {
+  transform: translateY(0);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
 } 
