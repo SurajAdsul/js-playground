@@ -29,8 +29,9 @@ if (process.contextIsolated) {
       ipcRenderer: {
         // Send
         send: (channel, data) => {
-          const validChannels = ['close-preferences']
-          if (validChannels.includes(channel)) {
+          const validChannels = ['close-preferences', 'open-preferences']
+          // Also allow any channel that starts with 'console-'
+          if (validChannels.includes(channel) || channel.startsWith('console-')) {
             ipcRenderer.send(channel, data)
           }
         },

@@ -254,8 +254,8 @@ function App() {
   }
   
   const openPreferences = () => {
-    // This would open a preferences dialog
-    console.log('Open preferences')
+    // Send a message to the main process to open the preferences window
+    window.electron.ipcRenderer.send('open-preferences')
   }
 
   const getEditorExtensions = () => {
