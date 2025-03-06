@@ -43,6 +43,37 @@ We use GitHub Actions to automate the build and release process. When you push a
 
 6. You'll find a draft release with the built artifacts. Review it, add any additional notes, and publish it when ready.
 
+### Troubleshooting Permission Issues
+
+If you encounter permission issues with the GitHub Actions workflow (e.g., "403 Forbidden" or "Resource not accessible by integration"), you may need to use a Personal Access Token (PAT) instead of the default GITHUB_TOKEN:
+
+1. Create a Personal Access Token:
+   - Go to your GitHub account settings
+   - Select "Developer settings" > "Personal access tokens" > "Tokens (classic)"
+   - Click "Generate new token" and select "Generate new token (classic)"
+   - Give it a descriptive name like "JS Playground Release"
+   - Select the following scopes: `repo`, `workflow`
+   - Click "Generate token" and copy the token
+
+2. Add the token as a repository secret:
+   - Go to your repository settings
+   - Select "Secrets and variables" > "Actions"
+   - Click "New repository secret"
+   - Name: `RELEASE_TOKEN`
+   - Value: Paste your personal access token
+   - Click "Add secret"
+
+3. Update the workflow file to use your PAT:
+   - Edit `.github/workflows/build-release.yml`
+   - In the "Create Release" step, change:
+     ```yaml
+     token: ${{ secrets.GITHUB_TOKEN }}
+     ```
+     to:
+     ```yaml
+     token: ${{ secrets.RELEASE_TOKEN }}
+     ```
+
 ## Manual Release Process
 
 If you need to build the application manually:

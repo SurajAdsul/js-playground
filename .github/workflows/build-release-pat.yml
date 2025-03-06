@@ -1,16 +1,9 @@
-name: Build and Release
+name: Build and Release (with PAT)
 
 on:
   push:
     tags:
       - 'v*'
-
-# Add permissions at the workflow level
-permissions:
-  contents: write
-  packages: read
-  issues: read
-  pull-requests: read
 
 jobs:
   build:
@@ -61,7 +54,6 @@ jobs:
     name: Create Release
     needs: build
     runs-on: ubuntu-latest
-    # We don't need to specify permissions here since they're inherited from the workflow level
     steps:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -83,4 +75,4 @@ jobs:
           draft: true
           files: artifacts/**/*
           generate_release_notes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          token: ${{ secrets.RELEASE_TOKEN }} 
