@@ -17,6 +17,9 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:mac-unsigned": "npm run build && electron-builder --mac --config.mac.identity=null",
     "build:mac-no-notarize": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && electron-builder --mac",
+    "build:mac-x64": "npm run build && electron-builder --mac --x64 --config.mac.identity=null",
+    "build:mac-arm64": "npm run build && electron-builder --mac --arm64 --config.mac.identity=null",
+    "build:mac-universal": "npm run build && electron-builder --mac --universal --config.mac.identity=null",
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
@@ -63,7 +66,10 @@
     ],
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
       ],
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
