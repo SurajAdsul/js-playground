@@ -3,6 +3,10 @@ import { VM } from 'vm2'
 import fs from 'fs'
 import path from 'path'
 import { app } from 'electron'
+import { exec } from 'child_process'
+import { promisify } from 'util'
+
+const execAsync = promisify(exec)
 
 // Helper function to make objects serializable
 function makeSerializable(obj) {
@@ -56,6 +60,76 @@ function stringifyForConsole(obj) {
 const getUserDataPath = () => {
   const userDataPath = app.getPath('userData')
   return path.join(userDataPath, 'preferences.json')
+}
+
+// Get the packages directory
+const getPackagesPath = () => {
+  const userDataPath = app.getPath('userData')
+  return path.join(userDataPath, 'packages')
+}
+
+// Ensure packages directory exists
+const ensurePackagesDirectory = () => {
+  console.log('Ensuring packages directory exists')
+  const packagesPath = getPackagesPath()
+  console.log('Packages path:', packagesPath)
+  
+  try {
+    if (!fs.existsSync(packagesPath)) {
+      console.log('Creating packages directory:', packagesPath)
+      fs.mkdirSync(packagesPath, { recursive: true })
+      
+      // Create a package.json file if it doesn't exist
+      const packageJsonPath = path.join(packagesPath, 'package.json')
+      if (!fs.existsSync(packageJsonPath)) {
+        console.log('Creating package.json file:', packageJsonPath)
+        fs.writeFileSync(packageJsonPath, JSON.stringify({
+          name: 'js-playground-packages',
+          version: '1.0.0',
+          description: 'Packages for JavaScript Playground',
+          dependencies: {}
+        }, null, 2))
+      }
+    } else {
+      console.log('Packages directory already exists')
+    }
+    return packagesPath
+  } catch (error) {
+    console.error('Error ensuring packages directory:', error)
+    throw error
+  }
+}
+
+// Get installed packages
+const getInstalledPackages = () => {
+  console.log('Getting installed packages')
+  const packagesPath = ensurePackagesDirectory()
+  console.log('Packages directory:', packagesPath)
+  const packageJsonPath = path.join(packagesPath, 'package.json')
+  console.log('Package.json path:', packageJsonPath)
+  
+  try {
+    if (fs.existsSync(packageJsonPath)) {
+      console.log('package.json exists, reading file')
+      const packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+      console.log('Package.json content:', packageJson)
+      return packageJson.dependencies || {}
+    } else {
+      console.log('package.json does not exist, creating it')
+      // Create package.json if it doesn't exist
+      const packageJson = {
+        name: 'js-playground-packages',
+        version: '1.0.0',
+        description: 'Packages for JavaScript Playground',
+        dependencies: {}
+      }
+      fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2), 'utf8')
+      return {}
+    }
+  } catch (error) {
+    console.error('Error reading package.json:', error)
+    return {}
+  }
 }
 
 // Default preferences
@@ -126,6 +200,16 @@ export function setupIpcHandlers(mainWindow) {
             originalConsoleLog('VM console.info:', ...args)
             mainWindow.webContents.send('console-info', args.map(stringifyForConsole))
           }
+        },
+        // Add require function to load installed packages
+        require: (moduleName) => {
+          try {
+            const packagesPath = getPackagesPath()
+            const modulePath = path.join(packagesPath, 'node_modules', moduleName)
+            return require(modulePath)
+          } catch (error) {
+            throw new Error(`Failed to load module '${moduleName}': ${error.message}`)
+          }
         }
       }
 
@@ -176,5 +260,123 @@ export function setupIpcHandlers(mainWindow) {
   ipcMain.handle('reset-preferences', async () => {
     console.log('Resetting preferences to default')
     return savePreferences({ ...defaultPreferences }, mainWindow)
+  })
+
+  // Get installed packages
+  ipcMain.handle('get-packages', async () => {
+    console.log('Received get-packages request')
+    try {
+      const packages = getInstalledPackages()
+      console.log('Returning packages:', packages)
+      return packages
+    } catch (error) {
+      console.error('Error in get-packages handler:', error)
+      return {}
+    }
+  })
+
+  // Install a package
+  ipcMain.handle('install-package', async (_, packageName, version) => {
+    try {
+      const packagesPath = ensurePackagesDirectory()
+      
+      // Notify the renderer that installation has started
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'installing',
+        message: `Installing ${packageName}${version ? `@${version}` : ''}...`
+      })
+      
+      // Construct the package name with version if provided
+      const packageToInstall = version ? `${packageName}@${version}` : packageName
+      
+      // Run npm install
+      const { stdout, stderr } = await execAsync(`npm install ${packageToInstall}`, {
+        cwd: packagesPath
+      })
+      
+      console.log(`Package installation stdout: ${stdout}`)
+      if (stderr) console.error(`Package installation stderr: ${stderr}`)
+      
+      // Read the updated package.json to get the installed version
+      const packageJson = JSON.parse(fs.readFileSync(path.join(packagesPath, 'package.json'), 'utf8'))
+      const installedVersion = packageJson.dependencies[packageName]
+      
+      // Notify the renderer that installation is complete
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'installed',
+        version: installedVersion,
+        message: `Successfully installed ${packageName}@${installedVersion}`
+      })
+      
+      return {
+        success: true,
+        packageName,
+        version: installedVersion
+      }
+    } catch (error) {
+      console.error(`Error installing package ${packageName}:`, error)
+      
+      // Notify the renderer that installation failed
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'error',
+        message: `Failed to install ${packageName}: ${error.message}`
+      })
+      
+      return {
+        success: false,
+        error: error.message
+      }
+    }
+  })
+
+  // Uninstall a package
+  ipcMain.handle('uninstall-package', async (_, packageName) => {
+    try {
+      const packagesPath = ensurePackagesDirectory()
+      
+      // Notify the renderer that uninstallation has started
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'uninstalling',
+        message: `Uninstalling ${packageName}...`
+      })
+      
+      // Run npm uninstall
+      const { stdout, stderr } = await execAsync(`npm uninstall ${packageName}`, {
+        cwd: packagesPath
+      })
+      
+      console.log(`Package uninstallation stdout: ${stdout}`)
+      if (stderr) console.error(`Package uninstallation stderr: ${stderr}`)
+      
+      // Notify the renderer that uninstallation is complete
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'uninstalled',
+        message: `Successfully uninstalled ${packageName}`
+      })
+      
+      return {
+        success: true,
+        packageName
+      }
+    } catch (error) {
+      console.error(`Error uninstalling package ${packageName}:`, error)
+      
+      // Notify the renderer that uninstallation failed
+      mainWindow.webContents.send('package-install-status', {
+        packageName,
+        status: 'error',
+        message: `Failed to uninstall ${packageName}: ${error.message}`
+      })
+      
+      return {
+        success: false,
+        error: error.message
+      }
+    }
   })
 } 

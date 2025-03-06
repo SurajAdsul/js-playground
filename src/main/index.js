@@ -34,6 +34,7 @@ function createWindow() {
   // Set icon for all platforms
   mainWindow.setIcon(iconPath)
 
+  // Setup IPC handlers with the main window
   setupIpcHandlers(mainWindow)
 
   mainWindow.on('ready-to-show', () => {

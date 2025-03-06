@@ -5,6 +5,8 @@ import CodeMirror from '@uiw/react-codemirror'
 import { useEffect, useRef, useState, useMemo } from 'react'
 import SplitPane from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
+import PackageManager from './components/PackageManager'
+import ErrorBoundary from './components/ErrorBoundary'
 
 const defaultCode = `// Write your JavaScript code here
 console.log('Hello, World!');
@@ -16,7 +18,12 @@ console.log('10 + 20 =', result);
 // Or use some ES6 features
 const numbers = [1, 2, 3, 4, 5];
 const doubled = numbers.map(n => n * 2);
-console.log('Doubled numbers:', doubled);`
+console.log('Doubled numbers:', doubled);
+
+// You can also use npm packages
+// Example (after installing lodash):
+// const _ = require('lodash');
+// console.log(_.chunk([1, 2, 3, 4], 2));`
 
 // Define themes
 const themes = {
@@ -80,6 +87,7 @@ function App() {
     autocomplete: true,
     theme: 'dracula'
   })
+  const [showPackageManager, setShowPackageManager] = useState(false)
 
   // Load preferences on component mount
   useEffect(() => {
@@ -102,82 +110,66 @@ function App() {
         console.error('Error loading preferences:', error)
       }
     }
-
+    
     loadPreferences()
-
-    // Listen for preference changes
+    
+    // Handle preference changes from other windows
     const handlePreferenceChange = (_, updatedPrefs) => {
-      console.log('Received preference change event with data:', updatedPrefs)
-      if (updatedPrefs) {
-        // If we received preferences with the event, use them directly
-        setPreferences(updatedPrefs)
-        
-        // Apply theme
-        if (updatedPrefs.theme && themes[updatedPrefs.theme]) {
-          setCurrentTheme(updatedPrefs.theme)
-        }
-      } else {
-        // Otherwise reload preferences from main process
-        loadPreferences()
+      console.log('Preferences changed:', updatedPrefs)
+      setPreferences(updatedPrefs)
+      
+      // Apply theme
+      if (updatedPrefs.theme && themes[updatedPrefs.theme]) {
+        console.log('Setting theme to:', updatedPrefs.theme)
+        setCurrentTheme(updatedPrefs.theme)
       }
     }
-
+    
     window.electron.ipcRenderer.on('preferences-changed', handlePreferenceChange)
-
+    
     return () => {
       window.electron.ipcRenderer.removeListener('preferences-changed', handlePreferenceChange)
     }
   }, [])
-
+  
+  // Set up console listeners
   useEffect(() => {
-    // Only set up listeners once
     if (listenersSetupRef.current) return
-    listenersSetupRef.current = true
-
-    // Set up console output listeners
+    
     const logListener = (_, args) => {
-      console.log('Received console log:', args)
-      setLogs(prev => [...prev, { type: 'log', content: Array.isArray(args) ? args.join(' ') : args }])
+      setLogs(prev => [...prev, { type: 'log', content: args.join(' ') }])
     }
     
     const errorListener = (_, args) => {
-      console.log('Received console error:', args)
-      setLogs(prev => [...prev, { type: 'error', content: Array.isArray(args) ? args.join(' ') : args }])
+      setLogs(prev => [...prev, { type: 'error', content: args.join(' ') }])
     }
     
     const warnListener = (_, args) => {
-      console.log('Received console warn:', args)
-      setLogs(prev => [...prev, { type: 'warn', content: Array.isArray(args) ? args.join(' ') : args }])
+      setLogs(prev => [...prev, { type: 'warn', content: args.join(' ') }])
     }
     
     const infoListener = (_, args) => {
-      console.log('Received console info:', args)
-      setLogs(prev => [...prev, { type: 'info', content: Array.isArray(args) ? args.join(' ') : args }])
+      setLogs(prev => [...prev, { type: 'info', content: args.join(' ') }])
     }
-
-    // Set up IPC listeners directly
+    
     window.electron.ipcRenderer.on('console-log', logListener)
     window.electron.ipcRenderer.on('console-error', errorListener)
     window.electron.ipcRenderer.on('console-warn', warnListener)
     window.electron.ipcRenderer.on('console-info', infoListener)
-
-    // Listen for new file events
-    window.electron.ipcRenderer.on('new-file', () => {
-      setCode(defaultCode)
-      setLogs([])
-    })
-
+    
+    listenersSetupRef.current = true
+    
     return () => {
-      // Clean up listeners
       window.electron.ipcRenderer.removeListener('console-log', logListener)
       window.electron.ipcRenderer.removeListener('console-error', errorListener)
       window.electron.ipcRenderer.removeListener('console-warn', warnListener)
       window.electron.ipcRenderer.removeListener('console-info', infoListener)
-      window.electron.ipcRenderer.removeListener('new-file', () => {})
+      
+      listenersSetupRef.current = false
     }
   }, [])
-
-  // Scroll to bottom of console when logs change
+  
+  // Auto-scroll console
   useEffect(() => {
     if (consoleRef.current) {
       consoleRef.current.scrollTop = consoleRef.current.scrollHeight
@@ -189,61 +181,52 @@ function App() {
   }
 
   const executeCode = async () => {
-    console.log('Executing code:', code.substring(0, 100) + (code.length > 100 ? '...' : ''))
-    setLogs([])
     try {
+      setLogs([{ type: 'info', content: 'Executing code...' }])
       const result = await window.electron.executeCode(code)
-      console.log('Execution result:', result)
       
-      if (!result.success) {
-        setLogs(prev => [...prev, { type: 'error', content: result.error }])
-      } else if (result.result && result.result.type !== 'undefined') {
-        let formattedResult
-        try {
-          formattedResult = parseSerializedData(JSON.stringify(result.result))
-        } catch (e) {
-          console.error('Error parsing result:', e)
-          formattedResult = String(result.result.value || result.result)
+      if (result.success) {
+        if (result.result && result.result.value !== undefined) {
+          setLogs(prev => [...prev, { type: 'result', content: parseSerializedData(JSON.stringify(result.result)) }])
         }
-        setLogs(prev => [...prev, { type: 'success', content: formattedResult }])
+      } else {
+        setLogs(prev => [...prev, { type: 'error', content: result.error }])
       }
     } catch (error) {
-      console.error('Error executing code:', error)
-      setLogs(prev => [...prev, { type: 'error', content: error.message || 'Unknown error occurred' }])
+      setLogs(prev => [...prev, { type: 'error', content: error.message }])
     }
   }
 
-  // Toggle theme and update preferences
   const toggleTheme = () => {
-    const newTheme = currentTheme === 'one-dark' ? 'dracula' : 'one-dark'
-    console.log('Toggling theme to:', newTheme)
+    const themes = ['dracula', 'one-dark']
+    const currentIndex = themes.indexOf(currentTheme)
+    const nextIndex = (currentIndex + 1) % themes.length
+    const newTheme = themes[nextIndex]
     
-    // Update local state
     setCurrentTheme(newTheme)
     
     // Update preferences
-    const newPreferences = { ...preferences, theme: newTheme }
-    setPreferences(newPreferences)
-    
-    // Save to main process
-    console.log('Saving updated preferences after theme toggle:', newPreferences)
-    window.electron.preferences.save(newPreferences)
-      .then(result => console.log('Save result:', result))
-      .catch(err => console.error('Error saving preferences:', err))
-  }
-
-  // Get editor extensions based on preferences
-  const getEditorExtensions = () => {
-    const extensions = [javascript({ jsx: true })]
-    
-    // Add more extensions based on preferences
-    if (preferences.autocomplete) {
-      console.log('Autocomplete is enabled')
-    } else {
-      console.log('Autocomplete is disabled')
+    const updatedPreferences = {
+      ...preferences,
+      theme: newTheme
     }
     
+    setPreferences(updatedPreferences)
+    window.electron.preferences.save(updatedPreferences)
+  }
+  
+  const openPreferences = () => {
+    // This would open a preferences dialog
+    console.log('Open preferences')
+  }
+
+  const getEditorExtensions = () => {
+    const extensions = [javascript()]
     return extensions
+  }
+
+  const togglePackageManager = () => {
+    setShowPackageManager(prev => !prev)
   }
 
   return (
@@ -256,6 +239,12 @@ function App() {
           </button>
           <button className="button" onClick={executeCode}>
             Run Code
+          </button>
+          <button className="button" onClick={togglePackageManager}>
+            Packages
+          </button>
+          <button className="button" onClick={openPreferences}>
+            Preferences
           </button>
         </div>
       </div>
@@ -309,12 +298,22 @@ function App() {
           <div className="console-container" ref={consoleRef}>
             {logs.map((log, index) => (
               <div key={index} className={`log-item log-${log.type}`}>
-                {log.content}
+                {log.type === 'error' && <span className="log-type">Error: </span>}
+                {log.type === 'warn' && <span className="log-type">Warning: </span>}
+                {log.type === 'info' && <span className="log-type">Info: </span>}
+                {log.type === 'result' && <span className="log-type">Result: </span>}
+                <span className="log-content">{log.content}</span>
               </div>
             ))}
           </div>
         </SplitPane>
       </div>
+      
+      {showPackageManager && (
+        <ErrorBoundary>
+          <PackageManager onClose={togglePackageManager} />
+        </ErrorBoundary>
+      )}
     </div>
   )
 }
