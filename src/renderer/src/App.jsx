@@ -2,8 +2,8 @@ import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import CodeMirror from '@uiw/react-codemirror'
-import { useEffect, useRef, useState } from 'react'
-import SplitPane, { Pane } from 'split-pane-react'
+import { useEffect, useRef, useState, useMemo } from 'react'
+import SplitPane from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
 
 const defaultCode = `// Write your JavaScript code here
@@ -32,32 +32,27 @@ const themes = {
 
 // Helper function to parse serialized data
 function parseSerializedData(data) {
-  if (typeof data !== 'string' || !data.startsWith('{')) {
-    return data
-  }
-  
   try {
     const parsed = JSON.parse(data)
     
-    if (parsed.type === 'undefined') return 'undefined'
-    if (parsed.type === 'null') return 'null'
-    if (parsed.type === 'function') return parsed.value
-    if (parsed.type === 'symbol') return parsed.value
-    if (parsed.type === 'bigint') return parsed.value
+    if (parsed.type === 'undefined') {
+      return 'undefined'
+    }
+    
+    if (parsed.type === 'null') {
+      return 'null'
+    }
+    
     if (parsed.type === 'string' || parsed.type === 'number' || parsed.type === 'boolean') {
       return parsed.value
     }
     
+    if (parsed.type === 'function' || parsed.type === 'symbol' || parsed.type === 'bigint') {
+      return parsed.value
+    }
+    
     if (parsed.type === 'array') {
-      return `[${parsed.value.map(parseSerializedData).join(', ')}]`
-    }
-    
-    if (parsed.type === 'date') {
-      return new Date(parsed.value).toString()
-    }
-    
-    if (parsed.type === 'error') {
-      return `${parsed.value.name}: ${parsed.value.message}`
+      return `[${parsed.value.map(item => parseSerializedData(JSON.stringify(item))).join(', ')}]`
     }
     
     if (parsed.type === 'object') {
@@ -80,6 +75,59 @@ function App() {
   const consoleRef = useRef(null)
   const [sizes, setSizes] = useState([50, 50])
   const listenersSetupRef = useRef(false)
+  const [preferences, setPreferences] = useState({
+    fontSize: 16,
+    autocomplete: true,
+    theme: 'dracula'
+  })
+
+  // Load preferences on component mount
+  useEffect(() => {
+    const loadPreferences = async () => {
+      try {
+        const prefs = await window.electron.preferences.get()
+        console.log('Loaded preferences:', prefs)
+        
+        // Apply preferences
+        setPreferences(prefs)
+        
+        // Apply theme
+        if (prefs.theme && themes[prefs.theme]) {
+          console.log('Setting theme to:', prefs.theme)
+          setCurrentTheme(prefs.theme)
+        } else {
+          console.log('Invalid theme in preferences, using default')
+        }
+      } catch (error) {
+        console.error('Error loading preferences:', error)
+      }
+    }
+
+    loadPreferences()
+
+    // Listen for preference changes
+    const handlePreferenceChange = (_, updatedPrefs) => {
+      console.log('Received preference change event with data:', updatedPrefs)
+      if (updatedPrefs) {
+        // If we received preferences with the event, use them directly
+        setPreferences(updatedPrefs)
+        
+        // Apply theme
+        if (updatedPrefs.theme && themes[updatedPrefs.theme]) {
+          setCurrentTheme(updatedPrefs.theme)
+        }
+      } else {
+        // Otherwise reload preferences from main process
+        loadPreferences()
+      }
+    }
+
+    window.electron.ipcRenderer.on('preferences-changed', handlePreferenceChange)
+
+    return () => {
+      window.electron.ipcRenderer.removeListener('preferences-changed', handlePreferenceChange)
+    }
+  }, [])
 
   useEffect(() => {
     // Only set up listeners once
@@ -88,19 +136,23 @@ function App() {
 
     // Set up console output listeners
     const logListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'log', content: args.join(' ') }])
+      console.log('Received console log:', args)
+      setLogs(prev => [...prev, { type: 'log', content: Array.isArray(args) ? args.join(' ') : args }])
     }
     
     const errorListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'error', content: args.join(' ') }])
+      console.log('Received console error:', args)
+      setLogs(prev => [...prev, { type: 'error', content: Array.isArray(args) ? args.join(' ') : args }])
     }
     
     const warnListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'warn', content: args.join(' ') }])
+      console.log('Received console warn:', args)
+      setLogs(prev => [...prev, { type: 'warn', content: Array.isArray(args) ? args.join(' ') : args }])
     }
     
     const infoListener = (_, args) => {
-      setLogs(prev => [...prev, { type: 'info', content: args.join(' ') }])
+      console.log('Received console info:', args)
+      setLogs(prev => [...prev, { type: 'info', content: Array.isArray(args) ? args.join(' ') : args }])
     }
 
     // Set up IPC listeners directly
@@ -109,41 +161,89 @@ function App() {
     window.electron.ipcRenderer.on('console-warn', warnListener)
     window.electron.ipcRenderer.on('console-info', infoListener)
 
+    // Listen for new file events
+    window.electron.ipcRenderer.on('new-file', () => {
+      setCode(defaultCode)
+      setLogs([])
+    })
+
     return () => {
       // Clean up listeners
       window.electron.ipcRenderer.removeListener('console-log', logListener)
       window.electron.ipcRenderer.removeListener('console-error', errorListener)
       window.electron.ipcRenderer.removeListener('console-warn', warnListener)
       window.electron.ipcRenderer.removeListener('console-info', infoListener)
+      window.electron.ipcRenderer.removeListener('new-file', () => {})
     }
   }, [])
+
+  // Scroll to bottom of console when logs change
+  useEffect(() => {
+    if (consoleRef.current) {
+      consoleRef.current.scrollTop = consoleRef.current.scrollHeight
+    }
+  }, [logs])
 
   const handleEditorChange = (value) => {
     setCode(value)
   }
 
   const executeCode = async () => {
+    console.log('Executing code:', code.substring(0, 100) + (code.length > 100 ? '...' : ''))
     setLogs([])
     try {
       const result = await window.electron.executeCode(code)
+      console.log('Execution result:', result)
+      
       if (!result.success) {
         setLogs(prev => [...prev, { type: 'error', content: result.error }])
       } else if (result.result && result.result.type !== 'undefined') {
         let formattedResult
         try {
-          formattedResult = JSON.stringify(result.result.value, null, 2)
+          formattedResult = parseSerializedData(JSON.stringify(result.result))
         } catch (e) {
-          formattedResult = String(result.result.value)
+          console.error('Error parsing result:', e)
+          formattedResult = String(result.result.value || result.result)
         }
         setLogs(prev => [...prev, { type: 'success', content: formattedResult }])
       }
     } catch (error) {
-      setLogs(prev => [...prev, { type: 'error', content: error.message }])
+      console.error('Error executing code:', error)
+      setLogs(prev => [...prev, { type: 'error', content: error.message || 'Unknown error occurred' }])
     }
   }
 
+  // Toggle theme and update preferences
   const toggleTheme = () => {
-    setCurrentTheme(currentTheme === 'one-dark' ? 'dracula' : 'one-dark')
+    const newTheme = currentTheme === 'one-dark' ? 'dracula' : 'one-dark'
+    console.log('Toggling theme to:', newTheme)
+    
+    // Update local state
+    setCurrentTheme(newTheme)
+    
+    // Update preferences
+    const newPreferences = { ...preferences, theme: newTheme }
+    setPreferences(newPreferences)
+    
+    // Save to main process
+    console.log('Saving updated preferences after theme toggle:', newPreferences)
+    window.electron.preferences.save(newPreferences)
+      .then(result => console.log('Save result:', result))
+      .catch(err => console.error('Error saving preferences:', err))
+  }
+
+  // Get editor extensions based on preferences
+  const getEditorExtensions = () => {
+    const extensions = [javascript({ jsx: true })]
+    
+    // Add more extensions based on preferences
+    if (preferences.autocomplete) {
+      console.log('Autocomplete is enabled')
+    } else {
+      console.log('Autocomplete is disabled')
+    }
+    
+    return extensions
   }
 
   return (
@@ -175,9 +275,35 @@ function App() {
             <CodeMirror
               value={code}
               height="100%"
-              extensions={[javascript({ jsx: true })]}
+              extensions={getEditorExtensions()}
               onChange={handleEditorChange}
               theme={themes[currentTheme].editor}
+              basicSetup={{
+                lineNumbers: true,
+                highlightActiveLineGutter: true,
+                highlightSpecialChars: true,
+                foldGutter: true,
+                dropCursor: true,
+                allowMultipleSelections: true,
+                indentOnInput: true,
+                syntaxHighlighting: true,
+                bracketMatching: true,
+                closeBrackets: true,
+                autocompletion: preferences.autocomplete,
+                rectangularSelection: true,
+                crosshairCursor: true,
+                highlightActiveLine: true,
+                highlightSelectionMatches: true,
+                closeBracketsKeymap: true,
+                searchKeymap: true,
+                foldKeymap: true,
+                completionKeymap: true,
+                lintKeymap: true
+              }}
+              style={{ 
+                fontSize: `${preferences.fontSize}px`,
+                fontFamily: "'Menlo', 'Monaco', 'Courier New', monospace"
+              }}
             />
           </div>
           <div className="console-container" ref={consoleRef}>

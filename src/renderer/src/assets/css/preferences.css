@@ -1,0 +1,100 @@
+.preferences-container {
+  padding: 20px;
+  background-color: #282a36;
+  color: #f8f8f2;
+  height: 100vh;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+}
+
+h2 {
+  margin-top: 0;
+  border-bottom: 1px solid #44475a;
+  padding-bottom: 10px;
+  color: #bd93f9;
+}
+
+h3 {
+  color: #ff79c6;
+  margin-top: 20px;
+  margin-bottom: 15px;
+}
+
+.preference-section {
+  margin-bottom: 30px;
+}
+
+.preference-item {
+  margin-bottom: 15px;
+  display: flex;
+  align-items: center;
+}
+
+.preference-item label {
+  display: flex;
+  align-items: center;
+  margin-right: 10px;
+  min-width: 150px;
+}
+
+.preference-item input[type="checkbox"] {
+  margin-right: 8px;
+}
+
+.preference-item input[type="number"] {
+  width: 60px;
+  padding: 5px;
+  border-radius: 4px;
+  border: 1px solid #44475a;
+  background-color: #21222c;
+  color: #f8f8f2;
+}
+
+.preference-item select {
+  padding: 5px 10px;
+  border-radius: 4px;
+  border: 1px solid #44475a;
+  background-color: #21222c;
+  color: #f8f8f2;
+  min-width: 150px;
+}
+
+.preference-actions {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  margin-top: 30px;
+  border-top: 1px solid #44475a;
+  padding-top: 20px;
+}
+
+.save-message {
+  color: #50fa7b;
+  margin-right: 15px;
+}
+
+button {
+  padding: 8px 16px;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  font-weight: 500;
+  margin-left: 10px;
+}
+
+.save-button {
+  background-color: #ff79c6;
+  color: white;
+}
+
+.save-button:hover {
+  background-color: #ff92d0;
+}
+
+.reset-button {
+  background-color: #44475a;
+  color: white;
+}
+
+.reset-button:hover {
+  background-color: #6272a4;
+} 

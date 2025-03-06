@@ -15,6 +15,8 @@
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run build && electron-builder --win",
     "build:mac": "npm run build && electron-builder --mac",
+    "build:mac-unsigned": "npm run build && electron-builder --mac --config.mac.identity=null",
+    "build:mac-no-notarize": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux"
   },
   "dependencies": {
@@ -48,5 +50,39 @@
     "react": "^18.3.1",
     "react-dom": "^18.3.1",
     "vite": "^6.1.0"
+  },
+  "build": {
+    "appId": "com.js-playground.app",
+    "productName": "JavaScript Playground",
+    "asar": true,
+    "directories": {
+      "output": "release/${version}"
+    },
+    "files": [
+      "out"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "hardenedRuntime": false,
+      "gatekeeperAssess": false,
+      "entitlements": false,
+      "entitlementsInherit": false,
+      "identity": null
+    },
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "certificateFile": null,
+      "certificatePassword": null,
+      "verifyUpdateCodeSignature": false
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ]
+    }
   }
 }

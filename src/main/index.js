@@ -1,16 +1,19 @@
-import { app, shell, BrowserWindow } from 'electron'
+import { app, shell, BrowserWindow, Menu, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { setupIpcHandlers } from './ipc'
 
+let mainWindow = null
+let preferencesWindow = null
+
 function createWindow() {
   // Create the browser window.
-  const mainWindow = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1200,
     height: 800,
     show: false,
-    autoHideMenuBar: true,
+    autoHideMenuBar: false,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
       preload: join(__dirname, '../preload/index.js'),
@@ -19,6 +22,8 @@ function createWindow() {
       contextIsolation: true
     }
   })
+
+  setupIpcHandlers(mainWindow)
 
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
@@ -38,6 +43,129 @@ function createWindow() {
   }
 }
 
+// Create preferences window
+function createPreferencesWindow() {
+  if (preferencesWindow) {
+    preferencesWindow.focus()
+    return
+  }
+
+  preferencesWindow = new BrowserWindow({
+    width: 500,
+    height: 400,
+    title: 'Preferences',
+    parent: mainWindow,
+    modal: true,
+    show: false,
+    resizable: false,
+    minimizable: false,
+    webPreferences: {
+      preload: join(__dirname, '../preload/index.js'),
+      sandbox: false,
+      nodeIntegration: true,
+      contextIsolation: true
+    }
+  })
+
+  preferencesWindow.on('ready-to-show', () => {
+    preferencesWindow.show()
+  })
+
+  preferencesWindow.on('closed', () => {
+    preferencesWindow = null
+  })
+
+  // Load the preferences HTML file
+  if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
+    preferencesWindow.loadURL(`${process.env['ELECTRON_RENDERER_URL']}/#/preferences`)
+  } else {
+    preferencesWindow.loadFile(join(__dirname, '../renderer/index.html'), {
+      hash: 'preferences'
+    })
+  }
+}
+
+// Setup IPC handlers for window management
+function setupWindowIpcHandlers() {
+  // Handle close preferences window request
+  ipcMain.on('close-preferences', () => {
+    if (preferencesWindow) {
+      preferencesWindow.close()
+    }
+  })
+}
+
+// Create application menu
+function createMenu() {
+  const template = [
+    {
+      label: 'File',
+      submenu: [
+        {
+          label: 'New',
+          accelerator: 'CmdOrCtrl+N',
+          click: () => {
+            mainWindow.webContents.send('new-file')
+          }
+        },
+        { type: 'separator' },
+        { role: 'quit' }
+      ]
+    },
+    {
+      label: 'Edit',
+      submenu: [
+        { role: 'undo' },
+        { role: 'redo' },
+        { type: 'separator' },
+        { role: 'cut' },
+        { role: 'copy' },
+        { role: 'paste' }
+      ]
+    },
+    {
+      label: 'View',
+      submenu: [
+        { role: 'reload' },
+        { role: 'forceReload' },
+        { role: 'toggleDevTools' },
+        { type: 'separator' },
+        { role: 'resetZoom' },
+        { role: 'zoomIn' },
+        { role: 'zoomOut' },
+        { type: 'separator' },
+        { role: 'togglefullscreen' }
+      ]
+    },
+    {
+      label: 'Settings',
+      submenu: [
+        {
+          label: 'Preferences',
+          accelerator: 'CmdOrCtrl+,',
+          click: () => {
+            createPreferencesWindow()
+          }
+        }
+      ]
+    },
+    {
+      role: 'help',
+      submenu: [
+        {
+          label: 'Learn More',
+          click: async () => {
+            await shell.openExternal('https://github.com/yourusername/js-playground')
+          }
+        }
+      ]
+    }
+  ]
+
+  const menu = Menu.buildFromTemplate(template)
+  Menu.setApplicationMenu(menu)
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -53,7 +181,8 @@ app.whenReady().then(() => {
   })
 
   createWindow()
-  setupIpcHandlers()
+  createMenu()
+  setupWindowIpcHandlers()
 
   app.on('activate', function () {
     // On macOS it's common to re-create a window in the app when the

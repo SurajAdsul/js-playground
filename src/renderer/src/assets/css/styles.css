@@ -122,11 +122,22 @@ html, body, #root {
 .cm-editor {
   height: 100%;
   width: 100%;
-  font-size: 16px;
+  /* Font size is controlled by inline style */
+}
+
+.cm-editor .cm-content {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
+  /* Ensure font size is inherited from the editor */
+  font-size: inherit !important;
 }
 
 .cm-scroller {
   overflow: auto;
+}
+
+/* Ensure CodeMirror respects font size */
+.cm-line {
+  font-size: inherit !important;
 }
 
 .log-item {
