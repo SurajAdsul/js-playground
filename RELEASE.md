@@ -6,7 +6,10 @@ This document describes how to create a new release of the JavaScript Playground
 
 We use GitHub Actions to automate the build and release process. When you push a tag with the format `v*` (e.g., `v1.0.0`), GitHub Actions will automatically:
 
-1. Build the application for Windows, macOS, and Linux
+1. Build the application for all supported platforms:
+   - macOS: Intel (x64), Apple Silicon (arm64), and Universal builds
+   - Windows: x64
+   - Linux: x64
 2. Create a draft release with the built artifacts
 3. Generate release notes based on the commits since the last release
 
@@ -43,6 +46,16 @@ We use GitHub Actions to automate the build and release process. When you push a
 
 6. You'll find a draft release with the built artifacts. Review it, add any additional notes, and publish it when ready.
 
+### Release Artifacts
+
+The automated build process creates the following artifacts:
+
+- **macOS Intel (x64)**: For Intel-based Macs
+- **macOS Apple Silicon (arm64)**: For Apple Silicon Macs (M1, M2, etc.)
+- **macOS Universal**: Works on both Intel and Apple Silicon Macs
+- **Windows**: Installer for Windows
+- **Linux**: AppImage for Linux
+
 ### Troubleshooting Permission Issues
 
 If you encounter permission issues with the GitHub Actions workflow (e.g., "403 Forbidden" or "Resource not accessible by integration"), you may need to use a Personal Access Token (PAT) instead of the default GITHUB_TOKEN:
@@ -78,13 +91,33 @@ If you encounter permission issues with the GitHub Actions workflow (e.g., "403 
 
 If you need to build the application manually:
 
-### For macOS (without code signing):
+### For macOS:
+
+#### Universal Build (both Intel x64 and Apple Silicon arm64):
+
+```bash
+npm run build:mac-universal
+```
+
+#### Intel x64 only:
+
+```bash
+npm run build:mac-x64
+```
+
+#### Apple Silicon arm64 only:
+
+```bash
+npm run build:mac-arm64
+```
+
+#### Without code signing:
 
 ```bash
 npm run build:mac-unsigned
 ```
 
-### For macOS (without notarization):
+#### Without notarization:
 
 ```bash
 npm run build:mac-no-notarize
