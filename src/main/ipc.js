@@ -140,7 +140,7 @@ const defaultPreferences = {
 }
 
 // Valid theme options
-const validThemes = ['dracula', 'one-dark', 'material-ocean']
+const validThemes = ['dracula', 'one-dark', 'material-ocean', 'vs-light']
 
 // Load preferences from file
 const loadPreferences = () => {

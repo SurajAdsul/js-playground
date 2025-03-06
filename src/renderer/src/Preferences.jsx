@@ -138,6 +138,7 @@ function Preferences() {
             <option value="dracula">Dracula</option>
             <option value="one-dark">One Dark</option>
             <option value="material-ocean">Material Ocean</option>
+            <option value="vs-light">Visual Studio Light</option>
           </select>
         </div>
       </div>

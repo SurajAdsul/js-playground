@@ -63,6 +63,20 @@ html, body, #root {
   --splitter-hover-color: #80CBC4;
 }
 
+.theme-vs-light {
+  --bg-color: #ffffff;
+  --header-bg: #f3f3f3;
+  --border-color: #e0e0e0;
+  --console-bg: #f9f9f9;
+  --button-bg: #0078d4;
+  --button-hover-bg: #106ebe;
+  --theme-button-bg: #0078d4;
+  --theme-button-hover-bg: #106ebe;
+  --splitter-color: #e0e0e0;
+  --splitter-hover-color: #0078d4;
+  color: #333333;
+}
+
 .main-content {
   display: flex;
   flex-direction: column;
@@ -87,6 +101,42 @@ html, body, #root {
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   overflow: auto;
   border-left: 1px solid var(--border-color);
+}
+
+.theme-vs-light .console-container {
+  color: #333;
+}
+
+/* Console header */
+.console-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.console-header span {
+  font-weight: 600;
+}
+
+.clear-button {
+  background: none;
+  border: none;
+  color: var(--button-bg);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.clear-button:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.theme-vs-light .clear-button:hover {
+  background-color: rgba(0, 0, 0, 0.05);
 }
 
 /* Split pane styles */
@@ -154,11 +204,15 @@ html, body, #root {
 }
 
 .log-item {
-  margin-bottom: 8px;
+  padding: 5px 0;
   border-bottom: 1px solid var(--border-color);
-  padding-bottom: 8px;
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   white-space: pre-wrap;
-  word-break: break-all;
+  word-break: break-word;
+}
+
+.theme-vs-light .log-item {
+  color: #333;
 }
 
 .log-item:last-child {
@@ -166,23 +220,51 @@ html, body, #root {
 }
 
 .log-error {
-  color: #ff6b6b;
+  color: #ff5555;
+}
+
+.theme-vs-light .log-error {
+  color: #d32f2f;
 }
 
 .log-warn {
-  color: #ffd43b;
+  color: #f1fa8c;
+}
+
+.theme-vs-light .log-warn {
+  color: #ff9800;
 }
 
 .log-info {
-  color: #4dabf7;
+  color: #8be9fd;
+}
+
+.theme-vs-light .log-info {
+  color: #0288d1;
 }
 
 .log-success {
   color: #50fa7b;
 }
 
+.theme-vs-light .log-success {
+  color: #388e3c;
+}
+
 .log-log {
   color: #f8f8f2;
+}
+
+.theme-vs-light .log-log {
+  color: #333;
+}
+
+.log-result {
+  color: #bd93f9;
+}
+
+.theme-vs-light .log-result {
+  color: #7b1fa2;
 }
 
 .header {
