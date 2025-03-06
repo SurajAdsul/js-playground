@@ -101,6 +101,8 @@ html, body, #root {
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   overflow: auto;
   border-left: 1px solid var(--border-color);
+  font-size: 13px;
+  line-height: 1.5;
 }
 
 .theme-vs-light .console-container {
@@ -204,63 +206,113 @@ html, body, #root {
 }
 
 .log-item {
-  padding: 5px 0;
+  padding: 6px 0;
   border-bottom: 1px solid var(--border-color);
   font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
   white-space: pre-wrap;
   word-break: break-word;
 }
 
-.theme-vs-light .log-item {
-  color: #333;
+.log-type {
+  font-weight: bold;
+  margin-right: 6px;
 }
 
-.log-item:last-child {
-  border-bottom: none;
+.log-content {
+  font-family: 'Menlo', 'Monaco', 'Courier New', monospace;
 }
 
-.log-error {
+/* Theme-specific log colors */
+.theme-dracula .log-error {
   color: #ff5555;
+}
+
+.theme-dracula .log-warn {
+  color: #f1fa8c;
+}
+
+.theme-dracula .log-info {
+  color: #8be9fd;
+}
+
+.theme-dracula .log-success {
+  color: #50fa7b;
+}
+
+.theme-dracula .log-log {
+  color: #f8f8f2;
+}
+
+.theme-dracula .log-result {
+  color: #bd93f9;
+}
+
+.theme-one-dark .log-error {
+  color: #e06c75;
+}
+
+.theme-one-dark .log-warn {
+  color: #e5c07b;
+}
+
+.theme-one-dark .log-info {
+  color: #61afef;
+}
+
+.theme-one-dark .log-success {
+  color: #98c379;
+}
+
+.theme-one-dark .log-log {
+  color: #abb2bf;
+}
+
+.theme-one-dark .log-result {
+  color: #c678dd;
+}
+
+.theme-material-ocean .log-error {
+  color: #ff5370;
+}
+
+.theme-material-ocean .log-warn {
+  color: #ffcb6b;
+}
+
+.theme-material-ocean .log-info {
+  color: #82aaff;
+}
+
+.theme-material-ocean .log-success {
+  color: #c3e88d;
+}
+
+.theme-material-ocean .log-log {
+  color: #eeffff;
+}
+
+.theme-material-ocean .log-result {
+  color: #c792ea;
 }
 
 .theme-vs-light .log-error {
   color: #d32f2f;
 }
 
-.log-warn {
-  color: #f1fa8c;
-}
-
 .theme-vs-light .log-warn {
-  color: #ff9800;
-}
-
-.log-info {
-  color: #8be9fd;
+  color: #ed6c02;
 }
 
 .theme-vs-light .log-info {
   color: #0288d1;
 }
 
-.log-success {
-  color: #50fa7b;
-}
-
 .theme-vs-light .log-success {
-  color: #388e3c;
-}
-
-.log-log {
-  color: #f8f8f2;
+  color: #2e7d32;
 }
 
 .theme-vs-light .log-log {
-  color: #333;
-}
-
-.log-result {
-  color: #bd93f9;
+  color: #333333;
 }
 
 .theme-vs-light .log-result {

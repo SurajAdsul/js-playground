@@ -2,7 +2,7 @@ import { javascript } from '@codemirror/lang-javascript'
 import { oneDark } from '@codemirror/theme-one-dark'
 import { dracula } from '@uiw/codemirror-theme-dracula'
 import CodeMirror from '@uiw/react-codemirror'
-import { useEffect, useRef, useState, useMemo } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import SplitPane from 'split-pane-react'
 import 'split-pane-react/esm/themes/default.css'
 import PackageManager from './components/PackageManager'
@@ -10,6 +10,8 @@ import ErrorBoundary from './components/ErrorBoundary'
 import { materialOcean } from './themes/materialOcean'
 import { vsLight } from './themes/vsLight'
 import Preferences from './Preferences'
+import Tabs from './components/Tabs'
+import './App.css'
 
 const defaultCode = `// Write your JavaScript code here
 console.log('Hello, World!');
@@ -48,46 +50,11 @@ const themes = {
   }
 }
 
-// Helper function to parse serialized data
-function parseSerializedData(data) {
-  try {
-    const parsed = JSON.parse(data)
-    
-    if (parsed.type === 'undefined') {
-      return 'undefined'
-    }
-    
-    if (parsed.type === 'null') {
-      return 'null'
-    }
-    
-    if (parsed.type === 'string' || parsed.type === 'number' || parsed.type === 'boolean') {
-      return parsed.value
-    }
-    
-    if (parsed.type === 'function' || parsed.type === 'symbol' || parsed.type === 'bigint') {
-      return parsed.value
-    }
-    
-    if (parsed.type === 'array') {
-      return `[${parsed.value.map(item => parseSerializedData(JSON.stringify(item))).join(', ')}]`
-    }
-    
-    if (parsed.type === 'object') {
-      const entries = Object.entries(parsed.value).map(([key, value]) => {
-        return `${key}: ${parseSerializedData(JSON.stringify(value))}`
-      })
-      return `{${entries.join(', ')}}`
-    }
-    
-    return JSON.stringify(parsed)
-  } catch (e) {
-    return data
-  }
-}
-
 function App() {
-  const [code, setCode] = useState(defaultCode)
+  const [tabs, setTabs] = useState([
+    { id: 1, title: 'Tab 1', code: defaultCode }
+  ])
+  const [activeTab, setActiveTab] = useState(1)
   const [logs, setLogs] = useState([])
   const [currentTheme, setCurrentTheme] = useState('dracula')
   const consoleRef = useRef(null)
@@ -126,93 +93,45 @@ function App() {
     }
     
     loadPreferences()
-    
-    // Handle preference changes from other windows
-    const handlePreferenceChange = (_, updatedPrefs) => {
-      console.log('Preferences changed:', updatedPrefs)
-      setPreferences(updatedPrefs)
-      
-      // Apply theme
-      if (updatedPrefs.theme && themes[updatedPrefs.theme]) {
-        console.log('Setting theme to:', updatedPrefs.theme)
-        setCurrentTheme(updatedPrefs.theme)
-      }
-    }
-    
-    window.electron.ipcRenderer.on('preferences-changed', handlePreferenceChange)
-    
-    return () => {
-      window.electron.ipcRenderer.removeListener('preferences-changed', handlePreferenceChange)
-    }
   }, [])
-  
+
   // Set up console listeners
   useEffect(() => {
     // Remove any existing listeners to prevent duplicates
-    window.electron.ipcRenderer.removeAllListeners('console-log');
-    window.electron.ipcRenderer.removeAllListeners('console-error');
-    window.electron.ipcRenderer.removeAllListeners('console-warn');
-    window.electron.ipcRenderer.removeAllListeners('console-info');
+    window.electron.ipcRenderer.removeAllListeners('console-log')
+    window.electron.ipcRenderer.removeAllListeners('console-error')
+    window.electron.ipcRenderer.removeAllListeners('console-warn')
+    window.electron.ipcRenderer.removeAllListeners('console-info')
     
     const logListener = (_, args) => {
-      // Use a functional update to ensure we're working with the latest state
-      setLogs(prevLogs => {
-        // Only add the log if it's not a duplicate of the last log
-        const lastLog = prevLogs[prevLogs.length - 1];
-        if (lastLog && lastLog.type === 'log' && lastLog.content === args.join(' ')) {
-          return prevLogs; // Skip duplicate
-        }
-        return [...prevLogs, { type: 'log', content: args.join(' ') }];
-      });
-    };
+      setLogs(prevLogs => [...prevLogs, { type: 'log', content: args[0] }])
+    }
     
     const errorListener = (_, args) => {
-      setLogs(prevLogs => {
-        const lastLog = prevLogs[prevLogs.length - 1];
-        if (lastLog && lastLog.type === 'error' && lastLog.content === args.join(' ')) {
-          return prevLogs;
-        }
-        return [...prevLogs, { type: 'error', content: args.join(' ') }];
-      });
-    };
+      setLogs(prevLogs => [...prevLogs, { type: 'error', content: args[0] }])
+    }
     
     const warnListener = (_, args) => {
-      setLogs(prevLogs => {
-        const lastLog = prevLogs[prevLogs.length - 1];
-        if (lastLog && lastLog.type === 'warn' && lastLog.content === args.join(' ')) {
-          return prevLogs;
-        }
-        return [...prevLogs, { type: 'warn', content: args.join(' ') }];
-      });
-    };
+      setLogs(prevLogs => [...prevLogs, { type: 'warn', content: args[0] }])
+    }
     
     const infoListener = (_, args) => {
-      setLogs(prevLogs => {
-        const lastLog = prevLogs[prevLogs.length - 1];
-        if (lastLog && lastLog.type === 'info' && lastLog.content === args.join(' ')) {
-          return prevLogs;
-        }
-        return [...prevLogs, { type: 'info', content: args.join(' ') }];
-      });
-    };
+      setLogs(prevLogs => [...prevLogs, { type: 'info', content: args[0] }])
+    }
     
-    window.electron.ipcRenderer.on('console-log', logListener);
-    window.electron.ipcRenderer.on('console-error', errorListener);
-    window.electron.ipcRenderer.on('console-warn', warnListener);
-    window.electron.ipcRenderer.on('console-info', infoListener);
-    
-    listenersSetupRef.current = true;
+    window.electron.ipcRenderer.on('console-log', logListener)
+    window.electron.ipcRenderer.on('console-error', errorListener)
+    window.electron.ipcRenderer.on('console-warn', warnListener)
+    window.electron.ipcRenderer.on('console-info', infoListener)
     
     return () => {
-      window.electron.ipcRenderer.removeListener('console-log', logListener);
-      window.electron.ipcRenderer.removeListener('console-error', errorListener);
-      window.electron.ipcRenderer.removeListener('console-warn', warnListener);
-      window.electron.ipcRenderer.removeListener('console-info', infoListener);
-      
-      listenersSetupRef.current = false;
-    };
-  }, []);
-  
+      window.electron.ipcRenderer.removeListener('console-log', logListener)
+      window.electron.ipcRenderer.removeListener('console-error', errorListener)
+      window.electron.ipcRenderer.removeListener('console-warn', warnListener)
+      window.electron.ipcRenderer.removeListener('console-info', infoListener)
+    }
+  }, [])
+
   // Auto-scroll console
   useEffect(() => {
     if (consoleRef.current) {
@@ -221,125 +140,87 @@ function App() {
   }, [logs])
 
   const handleEditorChange = (value) => {
-    setCode(value)
+    setTabs(prevTabs => 
+      prevTabs.map(tab => 
+        tab.id === activeTab ? { ...tab, code: value } : tab
+      )
+    )
+  }
+
+  const handleNewTab = () => {
+    const newId = Math.max(...tabs.map(tab => tab.id)) + 1
+    setTabs(prevTabs => [...prevTabs, { id: newId, title: `Tab ${newId}`, code: "" }])
+    setActiveTab(newId)
+  }
+
+  const handleTabChange = (tabId) => {
+    setActiveTab(tabId)
+  }
+
+  const handleTabClose = (tabId) => {
+    if (tabs.length > 1) {
+      setTabs(prevTabs => prevTabs.filter(tab => tab.id !== tabId))
+      if (activeTab === tabId) {
+        const remainingTabs = tabs.filter(tab => tab.id !== tabId)
+        setActiveTab(remainingTabs[0].id)
+      }
+    }
   }
 
   const executeCode = async () => {
     try {
-      // Clear logs and add initial message
-      setLogs([]);
+      setIsExecuting(true)
+      // Clear logs before execution
+      setLogs([])
+      
+      // Get the code from the active tab
+      const activeTabCode = tabs.find(tab => tab.id === activeTab)?.code || ''
       
       // Execute the code
-      const result = await window.electron.executeCode(code);
+      const result = await window.electron.executeCode(activeTabCode)
       
       // Handle the result
-      if (!result.success) {
-        setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+      if (result.success) {
+        if (result.result !== undefined) {
+          setLogs(prev => [...prev, { type: 'result', content: result.result }])
+        }
+      } else {
+        setLogs(prev => [...prev, { type: 'error', content: result.error }])
       }
     } catch (error) {
-      setLogs(prev => [...prev, { type: 'error', content: error.message }]);
+      setLogs(prev => [...prev, { type: 'error', content: error.message }])
+    } finally {
+      setIsExecuting(false)
     }
-  };
-
-  const toggleTheme = () => {
-    // Toggle between dracula and vs-light
-    const newTheme = currentTheme === 'vs-light' ? 'dracula' : 'vs-light'
-    
-    setCurrentTheme(newTheme)
-    
-    // Update preferences
-    const updatedPreferences = {
-      ...preferences,
-      theme: newTheme
-    }
-    
-    setPreferences(updatedPreferences)
-    window.electron.preferences.save(updatedPreferences)
-  }
-  
-  const openPreferences = () => {
-    console.log('Opening preferences modal');
-    setShowPreferences(true);
-  }
-
-  const closePreferences = () => {
-    console.log('Closing preferences modal');
-    setShowPreferences(false);
-  }
-
-  const savePreferences = (newPreferences) => {
-    console.log('Saving preferences:', newPreferences);
-    setPreferences(newPreferences);
-    setCurrentTheme(newPreferences.theme);
-    window.electron.preferences.save(newPreferences)
-      .then(() => {
-        console.log('Preferences saved successfully');
-      })
-      .catch(error => {
-        console.error('Error saving preferences:', error);
-      });
-  }
-
-  const getEditorExtensions = () => {
-    const extensions = [javascript()]
-    return extensions
   }
 
   const togglePackageManager = () => {
     setShowPackageManager(prev => !prev)
   }
 
-  // Keep logsRef in sync with logs state
-  useEffect(() => {
-    logsRef.current = logs
-  }, [logs])
-  
-  // Expose current theme to window object for IPC communication
-  useEffect(() => {
-    window.getCurrentTheme = () => currentTheme;
-    return () => {
-      delete window.getCurrentTheme;
-    };
-  }, [currentTheme]);
+  const openPreferences = () => {
+    setShowPreferences(true)
+  }
 
-  // Listen for open-preferences-from-menu event
-  useEffect(() => {
-    const handleOpenPreferencesFromMenu = () => {
-      console.log('Received open-preferences-from-menu event');
-      setShowPreferences(true);
-    };
-    
-    window.electron.ipcRenderer.on('open-preferences-from-menu', handleOpenPreferencesFromMenu);
-    
-    return () => {
-      window.electron.ipcRenderer.removeListener('open-preferences-from-menu', handleOpenPreferencesFromMenu);
-    };
-  }, []);
+  const closePreferences = () => {
+    setShowPreferences(false)
+  }
 
-  // Listen for open-preferences-in-app event
-  useEffect(() => {
-    const handleOpenPreferences = () => {
-      console.log('Received open-preferences-in-app event');
-      setShowPreferences(true);
-    };
-    
-    window.electron.ipcRenderer.on('open-preferences-in-app', handleOpenPreferences);
-    
-    return () => {
-      window.electron.ipcRenderer.removeListener('open-preferences-in-app', handleOpenPreferences);
-    };
-  }, []);
+  const savePreferences = (newPreferences) => {
+    setPreferences(newPreferences)
+    setCurrentTheme(newPreferences.theme)
+    window.electron.preferences.save(newPreferences)
+  }
 
-  // Set up the clear-console listener
+  const getEditorExtensions = () => {
+    return [javascript()]
+  }
 
   return (
     <div className={`app-container theme-${currentTheme}`}>
       <div className="header">
         <div className="title">JavaScript Playground</div>
         <div className="actions">
-          {/* <button className="theme-button" onClick={toggleTheme}>
-            {currentTheme === 'dracula' || currentTheme === 'material-ocean' || currentTheme === 'one-dark' ? '☀️' : '🌙'}
-          </button> */}
           <button className="button" onClick={executeCode} disabled={isExecuting}>
             {isExecuting ? 'Running...' : 'Run Code'}
           </button>
@@ -351,6 +232,13 @@ function App() {
           </button>
         </div>
       </div>
+      <Tabs
+        tabs={tabs}
+        activeTab={activeTab}
+        onTabChange={handleTabChange}
+        onTabClose={handleTabClose}
+        onNewTab={handleNewTab}
+      />
       <div className="main-content">
         <SplitPane
           split="vertical"
@@ -365,7 +253,7 @@ function App() {
         >
           <div className="editor-container">
             <CodeMirror
-              value={code}
+              value={tabs.find(tab => tab.id === activeTab)?.code || ''}
               height="100%"
               extensions={getEditorExtensions()}
               onChange={handleEditorChange}
@@ -437,4 +325,4 @@ function App() {
   )
 }
 
-export default App
+export default App 
