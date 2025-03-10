@@ -105,10 +105,16 @@ function App() {
   const [preferences, setPreferences] = useState({
     fontSize: 16,
     autocomplete: true,
-    theme: 'dracula'
+    theme: 'dracula',
+    autoExecute: true
   })
   const [showPackageManager, setShowPackageManager] = useState(false)
   const [showPreferences, setShowPreferences] = useState(false)
+  const executeTimeoutRef = useRef(null)
+  const lastExecutedCodeRef = useRef(code)
+  const isTypingRef = useRef(false)
+  const typingTimeoutRef = useRef(null)
+  const currentCodeRef = useRef(code)
 
   // Load preferences on component mount
   useEffect(() => {
@@ -227,14 +233,50 @@ function App() {
     }
   }, [logs])
 
-  const handleEditorChange = (value) => {
-    setCode(value)
+  // Create debounced execute function
+  const debouncedExecute = (value) => {
+    if (executeTimeoutRef.current) {
+      clearTimeout(executeTimeoutRef.current)
+    }
+
+    // Update the current code ref immediately
+    currentCodeRef.current = value
+
+    executeTimeoutRef.current = setTimeout(() => {
+      // Only execute if typing was detected
+      if (isTypingRef.current && preferences.autoExecute && !isExecuting) {
+        executeCode(currentCodeRef.current)
+        isTypingRef.current = false
+      }
+    }, 500)
   }
 
-  const executeCode = async () => {
+  // Clean up timeouts on unmount
+  useEffect(() => {
+    return () => {
+      if (executeTimeoutRef.current) {
+        clearTimeout(executeTimeoutRef.current)
+      }
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current)
+      }
+    }
+  }, [])
+
+  const handleEditorChange = (value) => {
+    // Set typing flag when change is detected
+    isTypingRef.current = true
+    setCode(value)
+    debouncedExecute(value)
+  }
+
+  const executeCode = async (codeToExecute) => {
     try {
-      // Clear logs and add initial message
-      setLogs([]);
+      setIsExecuting(true)
+      
+      // Always clear logs when executing code
+      setLogs([])
+      lastExecutedCodeRef.current = codeToExecute
       
       // Add Node.js and Browser API context with fetch implementation
       const apiContext = `
@@ -278,24 +320,24 @@ function App() {
       `;
       
       // Check if this is a multi-line expression that should be executed as a block
-      const shouldExecuteAsBlock = code.includes('\n') && (
-        code.includes('reduce') ||
-        code.includes('map') ||
-        code.includes('filter') ||
-        code.includes('forEach') ||
-        code.includes('fetch') ||
-        code.includes('then') ||
-        code.includes('async') ||
-        code.includes('await') ||
-        (code.includes('const ') && code.includes('let ')) ||
-        code.includes('for ') ||
-        code.includes('while ') ||
-        code.includes('console.log')
+      const shouldExecuteAsBlock = codeToExecute.includes('\n') && (
+        codeToExecute.includes('reduce') ||
+        codeToExecute.includes('map') ||
+        codeToExecute.includes('filter') ||
+        codeToExecute.includes('forEach') ||
+        codeToExecute.includes('fetch') ||
+        codeToExecute.includes('then') ||
+        codeToExecute.includes('async') ||
+        codeToExecute.includes('await') ||
+        (codeToExecute.includes('const ') && codeToExecute.includes('let ')) ||
+        codeToExecute.includes('for ') ||
+        codeToExecute.includes('while ') ||
+        codeToExecute.includes('console.log')
       );
       
       if (shouldExecuteAsBlock) {
         // Execute the entire block at once with API context
-        const result = await window.electron.executeCode(apiContext + '\n' + code);
+        const result = await window.electron.executeCode(apiContext + '\n' + codeToExecute);
         
         if (!result.success) {
           setLogs(prev => [...prev, { type: 'error', content: result.error }]);
@@ -313,20 +355,20 @@ function App() {
       }
       
       // Check if the code contains function definitions
-      const hasComplexCode = code.includes('function') || 
-                           code.includes('=>') || 
-                           code.includes('class');
+      const hasComplexCode = codeToExecute.includes('function') || 
+                           codeToExecute.includes('=>') || 
+                           codeToExecute.includes('class');
       
       if (hasComplexCode) {
         // First execute the entire block to define functions and set up context
-        const initialResult = await window.electron.executeCode(apiContext + '\n' + code);
+        const initialResult = await window.electron.executeCode(apiContext + '\n' + codeToExecute);
         if (!initialResult.success) {
           setLogs(prev => [...prev, { type: 'error', content: initialResult.error }]);
           return;
         }
         
         // Then find and execute standalone expressions and function calls
-        const lines = code.split('\n');
+        const lines = codeToExecute.split('\n');
         let isInsideFunction = false;
         let bracketCount = 0;
         let functionDefinitions = [];
@@ -394,7 +436,7 @@ function App() {
         }
       } else {
         // For simple expressions, execute each non-empty line
-        const lines = code.split('\n');
+        const lines = codeToExecute.split('\n');
         for (const line of lines) {
           const trimmedLine = line.trim();
           
@@ -426,6 +468,8 @@ function App() {
     } catch (error) {
       console.error('Execution error:', error);
       setLogs(prev => [...prev, { type: 'error', content: error.message }]);
+    } finally {
+      setIsExecuting(false)
     }
   };
 
@@ -560,6 +604,19 @@ function App() {
           </button>
           <button className="button" onClick={openPreferences}>
             Preferences
+          </button>
+          <button 
+            className={`button ${preferences.autoExecute ? 'active' : ''}`} 
+            onClick={() => {
+              const updatedPreferences = {
+                ...preferences,
+                autoExecute: !preferences.autoExecute
+              }
+              setPreferences(updatedPreferences)
+              window.electron.preferences.save(updatedPreferences)
+            }}
+          >
+            Auto-Run {preferences.autoExecute ? 'On' : 'Off'}
           </button>
         </div>
       </div>
