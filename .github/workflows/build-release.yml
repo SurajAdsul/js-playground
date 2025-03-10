@@ -26,20 +26,11 @@ jobs:
           - os: macos-latest
             build-command: build:mac-arm64
             arch: arm64
-          # Windows builds - 32-bit and 64-bit
-          - os: windows-latest
-            build-command: build:win32
-            arch: ia32
-          - os: windows-latest
-            build-command: build:win64
-            arch: x64
-          # Linux builds - 32-bit and 64-bit
+          # Windows and Linux builds
           - os: ubuntu-latest
-            build-command: build:linux32
-            arch: ia32
-          - os: ubuntu-latest
-            build-command: build:linux64
-            arch: x64
+            build-command: build:linux
+          - os: windows-latest
+            build-command: build:win
 
     steps:
       - name: Checkout code
@@ -50,14 +41,6 @@ jobs:
         with:
           node-version: 18
           cache: 'npm'
-
-      # Install required dependencies for 32-bit Linux builds
-      - name: Install Linux 32-bit dependencies
-        if: runner.os == 'Linux' && matrix.arch == 'ia32'
-        run: |
-          sudo dpkg --add-architecture i386
-          sudo apt-get update
-          sudo apt-get install -y gcc-multilib g++-multilib
 
       - name: Install dependencies
         run: npm ci
@@ -72,7 +55,7 @@ jobs:
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: js-playground-${{ matrix.os }}-${{ matrix.arch }}
+          name: js-playground-${{ matrix.os }}${{ matrix.arch && format('-{0}', matrix.arch) || '' }}
           path: |
             release/**/*.dmg
             release/**/*.exe
