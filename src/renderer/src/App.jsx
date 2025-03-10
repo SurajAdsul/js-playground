@@ -277,6 +277,26 @@ function App() {
       // Always clear logs when executing code
       setLogs([])
       lastExecutedCodeRef.current = codeToExecute
+
+      // Try to validate syntax and common errors first
+      try {
+        // Check for invalid console.log usage
+        const lines = codeToExecute.split('\n')
+        for (const line of lines) {
+          if (line.includes('console.log') && !line.includes('console.log(')) {
+            throw new Error('Invalid console.log usage. Did you forget parentheses? Use console.log("message") instead of console.log')
+          }
+        }
+        
+        // Use Function constructor to check general syntax
+        new Function(codeToExecute)
+      } catch (syntaxError) {
+        setLogs([{ 
+          type: 'error', 
+          content: `Syntax Error: ${syntaxError.message}`
+        }])
+        return
+      }
       
       // Add Node.js and Browser API context with fetch implementation
       const apiContext = `
@@ -340,7 +360,10 @@ function App() {
         const result = await window.electron.executeCode(apiContext + '\n' + codeToExecute);
         
         if (!result.success) {
-          setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+          const errorMessage = result.error.includes('SyntaxError') 
+            ? `Syntax Error: ${result.error}`
+            : result.error;
+          setLogs(prev => [...prev, { type: 'error', content: errorMessage }]);
         } else if (result.result !== undefined && result.result !== '' && result.result !== 'undefined') {
           const serializedData = JSON.stringify(result.result);
           const serializedResult = parseSerializedData(serializedData);
