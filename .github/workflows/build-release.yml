@@ -52,15 +52,20 @@ jobs:
         run: npm run ${{ matrix.build-command }}
         shell: bash
 
+      - name: List release directory
+        run: |
+          ls -R release/
+        shell: bash
+
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: js-playground-${{ matrix.os }}${{ matrix.arch && format('-{0}', matrix.arch) || '' }}
+          name: js-playground-${{ matrix.os }}-${{ matrix.arch || 'x64' }}
           path: |
             release/**/*.dmg
             release/**/*.exe
             release/**/*.AppImage
-          if-no-files-found: ignore
+          if-no-files-found: warn
 
   create-release:
     name: Create Release
@@ -72,9 +77,13 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
           
       - name: Display structure of downloaded files
-        run: ls -R artifacts
+        run: |
+          echo "Listing all artifacts:"
+          ls -R artifacts
+        shell: bash
         
       - name: Get version from tag
         id: get_version
@@ -82,10 +91,12 @@ jobs:
         
       - name: Create Release
         uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: ${{ github.ref }}
           name: JavaScript Playground ${{ steps.get_version.outputs.VERSION }}
           draft: true
           files: artifacts/**/*
           generate_release_notes: true
-          token: ${{ secrets.GITHUB_TOKEN }}
+          fail_on_unmatched_files: false
