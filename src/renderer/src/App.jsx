@@ -236,24 +236,150 @@ function App() {
       // Clear logs and add initial message
       setLogs([]);
       
-      // Execute the code
-      const result = await window.electron.executeCode(code);
-      console.log('Execution result:', result); // Debug log
+      // Check if this is a multi-line expression that should be executed as a block
+      const shouldExecuteAsBlock = code.includes('\n') && (
+        code.includes('reduce') ||
+        code.includes('map') ||
+        code.includes('filter') ||
+        code.includes('forEach') ||
+        (code.includes('const ') && code.includes('let ')) ||
+        code.includes('for ') ||
+        code.includes('while ') ||
+        code.includes('console.log')
+      );
       
-      // Handle the result
-      if (!result.success) {
-        setLogs(prev => [...prev, { type: 'error', content: result.error }]);
-      } else if (result.result !== undefined && result.result.type !== 'undefined') {
-        // Only display the result if it exists and is not undefined
-        console.log('Raw result:', result.result); // Debug log
-        const serializedData = JSON.stringify(result.result);
-        console.log('Serialized data:', serializedData); // Debug log
-        const serializedResult = parseSerializedData(serializedData);
-        console.log('Parsed result:', serializedResult); // Debug log
-        setLogs(prev => [...prev, { type: 'result', content: String(serializedResult) }]);
+      if (shouldExecuteAsBlock) {
+        // Execute the entire block at once
+        const result = await window.electron.executeCode(code);
+        
+        if (!result.success) {
+          setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+        } else if (result.result !== undefined && result.result !== '' && result.result !== 'undefined') {
+          const serializedData = JSON.stringify(result.result);
+          const serializedResult = parseSerializedData(serializedData);
+          if (serializedResult !== '' && serializedResult !== 'undefined') {
+            setLogs(prev => [...prev, { 
+              type: 'result', 
+              content: String(serializedResult)
+            }]);
+          }
+        }
+        return;
+      }
+      
+      // Check if the code contains function definitions
+      const hasComplexCode = code.includes('function') || 
+                           code.includes('=>') || 
+                           code.includes('class');
+      
+      if (hasComplexCode) {
+        // First execute the entire block to define functions and set up context
+        const initialResult = await window.electron.executeCode(code);
+        if (!initialResult.success) {
+          setLogs(prev => [...prev, { type: 'error', content: initialResult.error }]);
+          return;
+        }
+        
+        // Then find and execute standalone expressions and function calls
+        const lines = code.split('\n');
+        let isInsideFunction = false;
+        let bracketCount = 0;
+        let functionDefinitions = [];
+        let standalone = [];
+        
+        for (let i = 0; i < lines.length; i++) {
+          const trimmedLine = lines[i].trim();
+          
+          // Skip empty lines and comments
+          if (!trimmedLine || trimmedLine.startsWith('//')) {
+            continue;
+          }
+          
+          // Check if we're entering a function definition
+          if (trimmedLine.includes('function') || trimmedLine.includes('=>') || 
+              trimmedLine.includes('class')) {
+            isInsideFunction = true;
+            bracketCount += (trimmedLine.match(/{/g) || []).length;
+            functionDefinitions.push(trimmedLine);
+            continue;
+          }
+          
+          // Update bracket count and collect function definition lines
+          if (isInsideFunction) {
+            bracketCount += (trimmedLine.match(/{/g) || []).length;
+            bracketCount -= (trimmedLine.match(/}/g) || []).length;
+            functionDefinitions.push(trimmedLine);
+            
+            // Check if we're exiting the function definition
+            if (bracketCount === 0) {
+              isInsideFunction = false;
+            }
+            continue;
+          }
+          
+          // If we're not inside a function definition, collect standalone expressions
+          if (!isInsideFunction && trimmedLine.includes('(') && !trimmedLine.endsWith('{')) {
+            standalone.push(trimmedLine);
+          }
+        }
+        
+        // Create the context with all function definitions
+        const context = functionDefinitions.join('\n');
+        
+        // Execute standalone expressions and function calls with context
+        for (const expr of standalone) {
+          try {
+            const result = await window.electron.executeCode(context + '\n' + expr);
+            
+            if (!result.success) {
+              setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+            } else if (result.result !== undefined && result.result !== 'undefined') {
+              const serializedData = JSON.stringify(result.result);
+              const serializedResult = parseSerializedData(serializedData);
+              if (serializedResult !== '' && serializedResult !== 'undefined') {
+                setLogs(prev => [...prev, { 
+                  type: 'result', 
+                  content: String(serializedResult)
+                }]);
+              }
+            }
+          } catch (error) {
+            // Ignore errors for expressions that might depend on context
+          }
+        }
+      } else {
+        // For simple expressions, execute each non-empty line
+        const lines = code.split('\n');
+        for (const line of lines) {
+          const trimmedLine = line.trim();
+          
+          // Skip empty lines, comments, and console.log statements
+          if (!trimmedLine || trimmedLine.startsWith('//') || trimmedLine.includes('console.log')) {
+            continue;
+          }
+          
+          try {
+            const result = await window.electron.executeCode(trimmedLine);
+            
+            if (!result.success) {
+              setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+            } else if (result.result !== undefined && result.result !== 'undefined') {
+              const serializedData = JSON.stringify(result.result);
+              const serializedResult = parseSerializedData(serializedData);
+              if (serializedResult !== '' && serializedResult !== 'undefined') {
+                setLogs(prev => [...prev, { 
+                  type: 'result', 
+                  content: String(serializedResult)
+                }]);
+              }
+            }
+          } catch (error) {
+            setLogs(prev => [...prev, { type: 'error', content: error.message }]);
+          }
+        }
       }
     } catch (error) {
-      console.error('Execution error:', error); // Debug log
+      console.error('Execution error:', error);
       setLogs(prev => [...prev, { type: 'error', content: error.message }]);
     }
   };
@@ -421,7 +547,6 @@ function App() {
                 {log.type === 'error' && <span className="log-type">Error: </span>}
                 {log.type === 'warn' && <span className="log-type">Warning: </span>}
                 {log.type === 'info' && <span className="log-type">Info: </span>}
-                {log.type === 'result' && <span className="log-type">Result: </span>}
                 <span className="log-content">{log.content}</span>
               </div>
             ))}
