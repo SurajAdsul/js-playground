@@ -5,6 +5,8 @@ import path from 'path'
 import { app } from 'electron'
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import https from 'https'
+import http from 'http'
 
 const execAsync = promisify(exec)
 
@@ -490,6 +492,33 @@ const uninstallPackage = async (packagesPath, packageName) => {
   }
 }
 
+// Helper function to make HTTP/HTTPS requests
+const makeRequest = (url, options = {}) => {
+  return new Promise((resolve, reject) => {
+    const protocol = url.startsWith('https') ? https : http;
+    
+    const req = protocol.get(url, options, (res) => {
+      let data = '';
+      
+      res.on('data', (chunk) => {
+        data += chunk;
+      });
+      
+      res.on('end', () => {
+        resolve({
+          data,
+          status: res.statusCode,
+          statusText: res.statusMessage,
+          headers: res.headers
+        });
+      });
+    });
+    
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 export function setupIpcHandlers(mainWindow) {
   // Execute JavaScript code
   ipcMain.handle('execute-code', async (_, code) => {
@@ -572,6 +601,15 @@ export function setupIpcHandlers(mainWindow) {
           } catch (error) {
             console.error(`Error loading module '${moduleName}':`, error);
             throw new Error(`Failed to load module '${moduleName}': ${error.message}`);
+          }
+        },
+        // Add bridge function for fetch requests
+        __bridge_fetch: async (url, options = {}) => {
+          try {
+            const response = await makeRequest(url, options);
+            return response;
+          } catch (error) {
+            throw new Error(`Fetch error: ${error.message}`);
           }
         }
       };
@@ -737,4 +775,14 @@ export function setupIpcHandlers(mainWindow) {
       }
     }
   })
+
+  // Handle fetch requests
+  ipcMain.handle('fetch-request', async (event, { url, options }) => {
+    try {
+      const response = await makeRequest(url, options);
+      return response;
+    } catch (error) {
+      throw new Error(`Fetch error: ${error.message}`);
+    }
+  });
 } 

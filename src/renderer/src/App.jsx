@@ -236,12 +236,57 @@ function App() {
       // Clear logs and add initial message
       setLogs([]);
       
+      // Add Node.js and Browser API context with fetch implementation
+      const apiContext = `
+        // Browser APIs
+        const window = global.window || {};
+        const document = global.document || {};
+        const localStorage = global.localStorage || {};
+        const sessionStorage = global.sessionStorage || {};
+        
+        // Node.js APIs
+        const process = global.process || {};
+        const Buffer = global.Buffer || {};
+        const __dirname = global.__dirname || '';
+        const __filename = global.__filename || '';
+        
+        // Common APIs
+        const setTimeout = global.setTimeout;
+        const clearTimeout = global.clearTimeout;
+        const setInterval = global.setInterval;
+        const clearInterval = global.clearInterval;
+        const console = global.console;
+
+        // Fetch API implementation using bridge function
+        const fetch = (url, options = {}) => {
+          return new Promise((resolve, reject) => {
+            __bridge_fetch(url, options)
+              .then(response => {
+                const { data, status, statusText, headers } = response;
+                resolve({
+                  ok: status >= 200 && status < 300,
+                  status,
+                  statusText,
+                  headers,
+                  json: () => Promise.resolve(JSON.parse(data)),
+                  text: () => Promise.resolve(data)
+                });
+              })
+              .catch(reject);
+          });
+        };
+      `;
+      
       // Check if this is a multi-line expression that should be executed as a block
       const shouldExecuteAsBlock = code.includes('\n') && (
         code.includes('reduce') ||
         code.includes('map') ||
         code.includes('filter') ||
         code.includes('forEach') ||
+        code.includes('fetch') ||
+        code.includes('then') ||
+        code.includes('async') ||
+        code.includes('await') ||
         (code.includes('const ') && code.includes('let ')) ||
         code.includes('for ') ||
         code.includes('while ') ||
@@ -249,8 +294,8 @@ function App() {
       );
       
       if (shouldExecuteAsBlock) {
-        // Execute the entire block at once
-        const result = await window.electron.executeCode(code);
+        // Execute the entire block at once with API context
+        const result = await window.electron.executeCode(apiContext + '\n' + code);
         
         if (!result.success) {
           setLogs(prev => [...prev, { type: 'error', content: result.error }]);
@@ -274,7 +319,7 @@ function App() {
       
       if (hasComplexCode) {
         // First execute the entire block to define functions and set up context
-        const initialResult = await window.electron.executeCode(code);
+        const initialResult = await window.electron.executeCode(apiContext + '\n' + code);
         if (!initialResult.success) {
           setLogs(prev => [...prev, { type: 'error', content: initialResult.error }]);
           return;
@@ -324,7 +369,7 @@ function App() {
         }
         
         // Create the context with all function definitions
-        const context = functionDefinitions.join('\n');
+        const context = apiContext + '\n' + functionDefinitions.join('\n');
         
         // Execute standalone expressions and function calls with context
         for (const expr of standalone) {
@@ -359,7 +404,7 @@ function App() {
           }
           
           try {
-            const result = await window.electron.executeCode(trimmedLine);
+            const result = await window.electron.executeCode(apiContext + '\n' + trimmedLine);
             
             if (!result.success) {
               setLogs(prev => [...prev, { type: 'error', content: result.error }]);
@@ -424,8 +469,32 @@ function App() {
   }
 
   const getEditorExtensions = () => {
-    const extensions = [javascript()]
-    return extensions
+    const extensions = [
+      javascript({ 
+        jsx: true,
+        typescript: false,
+        // Add Node.js and Browser globals
+        globals: [
+          // Browser APIs
+          'window', 'document', 'console', 'fetch', 'localStorage', 'sessionStorage',
+          'setTimeout', 'setInterval', 'clearTimeout', 'clearInterval',
+          'requestAnimationFrame', 'cancelAnimationFrame',
+          'addEventListener', 'removeEventListener',
+          'XMLHttpRequest', 'WebSocket', 'Worker',
+          'Blob', 'File', 'FileReader', 'URL',
+          'Promise', 'async', 'await',
+          
+          // Node.js APIs
+          'process', 'require', 'module', 'exports',
+          'Buffer', '__dirname', '__filename',
+          'global', 'setImmediate', 'clearImmediate',
+          'setTimeout', 'clearTimeout',
+          'setInterval', 'clearInterval',
+          'console', 'module'
+        ]
+      })
+    ];
+    return extensions;
   }
 
   const togglePackageManager = () => {

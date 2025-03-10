@@ -58,7 +58,7 @@ if (process.contextIsolated) {
         },
         // Invoke
         invoke: (channel, ...args) => {
-          const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync']
+          const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync', 'fetch-request']
           if (validChannels.includes(channel)) {
             return ipcRenderer.invoke(channel, ...args)
           }
@@ -114,7 +114,7 @@ if (process.contextIsolated) {
         }
       },
       invoke: (channel, ...args) => {
-        const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync']
+        const validChannels = ['execute-code', 'get-preferences', 'save-preferences', 'reset-preferences', 'get-packages', 'install-package', 'uninstall-package', 'open-preferences-sync', 'fetch-request']
         if (validChannels.includes(channel)) {
           return ipcRenderer.invoke(channel, ...args)
         }
