@@ -243,8 +243,8 @@ function App() {
       // Handle the result
       if (!result.success) {
         setLogs(prev => [...prev, { type: 'error', content: result.error }]);
-      } else if (result.result !== undefined) {
-        // Display the execution result if it exists
+      } else if (result.result !== undefined && result.result.type !== 'undefined') {
+        // Only display the result if it exists and is not undefined
         console.log('Raw result:', result.result); // Debug log
         const serializedData = JSON.stringify(result.result);
         console.log('Serialized data:', serializedData); // Debug log

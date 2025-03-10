@@ -547,6 +547,8 @@ export function setupIpcHandlers(mainWindow) {
             }
           }
         },
+        // Add fs module
+        fs: fs,
         // Add require function to load installed packages
         require: (moduleName) => {
           try {
@@ -579,11 +581,18 @@ export function setupIpcHandlers(mainWindow) {
         timeout: 5000,
         sandbox: sandbox,
         eval: false,
-        wasm: false
+        wasm: false,
+        sourceExtensions: ['js', 'mjs'],
+        compiler: 'javascript'
       });
 
-      // Execute the code
-      const result = vm.run(code);
+      // Transform ES module code to CommonJS
+      const transformedCode = code.replace(/import\s+(\{[^}]+\}|\*\s+as\s+[^;]+|[^;]+)\s+from\s+['"][^'"]+['"]/g, (match) => {
+        return match.replace('import', 'const').replace('from', '= require');
+      });
+
+      // Execute the transformed code
+      const result = vm.run(transformedCode);
       originalConsoleLog('VM execution result:', result);
 
       return {
