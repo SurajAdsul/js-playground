@@ -51,38 +51,45 @@ const themes = {
 // Helper function to parse serialized data
 function parseSerializedData(data) {
   try {
-    const parsed = JSON.parse(data)
+    console.log('parseSerializedData input:', data); // Debug log
+    const parsed = JSON.parse(data);
+    console.log('parseSerializedData parsed:', parsed); // Debug log
     
     if (parsed.type === 'undefined') {
-      return 'undefined'
+      return 'undefined';
     }
     
     if (parsed.type === 'null') {
-      return 'null'
+      return 'null';
     }
     
-    if (parsed.type === 'string' || parsed.type === 'number' || parsed.type === 'boolean') {
-      return parsed.value
+    if (parsed.type === 'boolean') {
+      return parsed.value.toString();
+    }
+    
+    if (parsed.type === 'string' || parsed.type === 'number') {
+      return parsed.value;
     }
     
     if (parsed.type === 'function' || parsed.type === 'symbol' || parsed.type === 'bigint') {
-      return parsed.value
+      return parsed.value;
     }
     
     if (parsed.type === 'array') {
-      return `[${parsed.value.map(item => parseSerializedData(JSON.stringify(item))).join(', ')}]`
+      return `[${parsed.value.map(item => parseSerializedData(JSON.stringify(item))).join(', ')}]`;
     }
     
     if (parsed.type === 'object') {
       const entries = Object.entries(parsed.value).map(([key, value]) => {
-        return `${key}: ${parseSerializedData(JSON.stringify(value))}`
-      })
-      return `{${entries.join(', ')}}`
+        return `${key}: ${parseSerializedData(JSON.stringify(value))}`;
+      });
+      return `{${entries.join(', ')}}`;
     }
     
-    return JSON.stringify(parsed)
+    return JSON.stringify(parsed);
   } catch (e) {
-    return data
+    console.error('parseSerializedData error:', e); // Debug log
+    return data;
   }
 }
 
@@ -231,12 +238,22 @@ function App() {
       
       // Execute the code
       const result = await window.electron.executeCode(code);
+      console.log('Execution result:', result); // Debug log
       
       // Handle the result
       if (!result.success) {
         setLogs(prev => [...prev, { type: 'error', content: result.error }]);
+      } else if (result.result !== undefined) {
+        // Display the execution result if it exists
+        console.log('Raw result:', result.result); // Debug log
+        const serializedData = JSON.stringify(result.result);
+        console.log('Serialized data:', serializedData); // Debug log
+        const serializedResult = parseSerializedData(serializedData);
+        console.log('Parsed result:', serializedResult); // Debug log
+        setLogs(prev => [...prev, { type: 'result', content: String(serializedResult) }]);
       }
     } catch (error) {
+      console.error('Execution error:', error); // Debug log
       setLogs(prev => [...prev, { type: 'error', content: error.message }]);
     }
   };
