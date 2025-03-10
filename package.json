@@ -78,6 +78,7 @@
           ]
         }
       ],
+      "artifactName": "${productName}-${version}-${arch}.${ext}",
       "icon": "resources/icons/icon.icns",
       "hardenedRuntime": false,
       "gatekeeperAssess": false,
