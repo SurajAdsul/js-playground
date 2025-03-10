@@ -13,14 +13,18 @@
     "build": "electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
+    "build:win": "npm run build && electron-builder --win --x64 --ia32",
+    "build:win32": "npm run build && electron-builder --win --ia32",
+    "build:win64": "npm run build && electron-builder --win --x64",
     "build:mac": "npm run build && electron-builder --mac",
     "build:mac-unsigned": "npm run build && electron-builder --mac --config.mac.identity=null",
     "build:mac-no-notarize": "CSC_IDENTITY_AUTO_DISCOVERY=false npm run build && electron-builder --mac",
     "build:mac-x64": "npm run build && electron-builder --mac --x64 --config.mac.identity=null",
     "build:mac-arm64": "npm run build && electron-builder --mac --arm64 --config.mac.identity=null",
     "build:mac-universal": "npm run build && electron-builder --mac --universal --config.mac.identity=null",
-    "build:linux": "npm run build && electron-builder --linux",
+    "build:linux": "npm run build && electron-builder --linux --x64 --ia32",
+    "build:linux32": "npm run build && electron-builder --linux --ia32",
+    "build:linux64": "npm run build && electron-builder --linux --x64",
     "generate-icons": "electron-icon-builder --input=./resources/icon.png --output=./resources/icons --flatten"
   },
   "dependencies": {
@@ -87,7 +91,10 @@
     },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
       ],
       "icon": "resources/icons/icon.ico",
       "certificateFile": null,
@@ -96,7 +103,10 @@
     },
     "linux": {
       "target": [
-        "AppImage"
+        {
+          "target": "AppImage",
+          "arch": ["x64", "ia32"]
+        }
       ],
       "icon": "resources/icons"
     }

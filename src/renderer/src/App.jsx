@@ -271,31 +271,36 @@ function App() {
   }
 
   const executeCode = async (codeToExecute) => {
+    if (!codeToExecute || typeof codeToExecute !== 'string') {
+      setLogs([{ type: 'error', content: 'No code to execute' }]);
+      return;
+    }
+
     try {
-      setIsExecuting(true)
+      setIsExecuting(true);
       
       // Always clear logs when executing code
-      setLogs([])
-      lastExecutedCodeRef.current = codeToExecute
+      setLogs([]);
+      lastExecutedCodeRef.current = codeToExecute;
 
       // Try to validate syntax and common errors first
       try {
         // Check for invalid console.log usage
-        const lines = codeToExecute.split('\n')
+        const lines = codeToExecute.split('\n');
         for (const line of lines) {
           if (line.includes('console.log') && !line.includes('console.log(')) {
-            throw new Error('Invalid console.log usage. Did you forget parentheses? Use console.log("message") instead of console.log')
+            throw new Error('Invalid console.log usage. Did you forget parentheses? Use console.log("message") instead of console.log');
           }
         }
         
         // Use Function constructor to check general syntax
-        new Function(codeToExecute)
+        new Function(codeToExecute);
       } catch (syntaxError) {
         setLogs([{ 
           type: 'error', 
           content: `Syntax Error: ${syntaxError.message}`
-        }])
-        return
+        }]);
+        return;
       }
       
       // Add Node.js and Browser API context with fetch implementation
@@ -619,7 +624,7 @@ function App() {
           {/* <button className="theme-button" onClick={toggleTheme}>
             {currentTheme === 'dracula' || currentTheme === 'material-ocean' || currentTheme === 'one-dark' ? '☀️' : '🌙'}
           </button> */}
-          <button className="button" onClick={executeCode} disabled={isExecuting}>
+          <button className="button" onClick={() => executeCode(code)} disabled={isExecuting}>
             {isExecuting ? 'Running...' : 'Run Code'}
           </button>
           <button className="button" onClick={togglePackageManager}>
