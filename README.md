@@ -6,9 +6,10 @@ A simple desktop application that allows you to write and run JavaScript code.
 
 - 📝 Write and execute JavaScript code in a clean interface
 - ⚡ Lightweight and fast
-- 📦 No external dependencies required
 - 🎯 Supports ES6+ syntax
-- 💾 Save and load code snippets
+- 📦 Uses external dependencies
+- 🌐 Multi-OS support
+- 🎨 Multi-theme support
 
 ## 📥 Installation
 
