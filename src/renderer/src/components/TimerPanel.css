@@ -1,0 +1,76 @@
+.timer-panel {
+  background-color: #2d2d2d;
+  border-bottom: 1px solid #3d3d3d;
+  padding: 8px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.timer-panel.minimized {
+  position: fixed;
+  top: 60px;
+  right: 20px;
+  background-color: #2d2d2d;
+  border: 1px solid #3d3d3d;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 1000;
+  transition: transform 0.2s ease;
+}
+
+.timer-panel.minimized:hover {
+  transform: scale(1.1);
+}
+
+.timer-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timer-display {
+  font-family: monospace;
+  font-size: 1.1em;
+  color: #fff;
+  padding: 4px 8px;
+  background-color: #1e1e1e;
+  border-radius: 4px;
+}
+
+.timer-button {
+  background-color: #3d3d3d;
+  color: #fff;
+  border: none;
+  padding: 4px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9em;
+  transition: background-color 0.2s ease;
+}
+
+.timer-button:hover {
+  background-color: #4d4d4d;
+}
+
+.timer-button.active {
+  background-color: #e74c3c;
+}
+
+.timer-button.active:hover {
+  background-color: #c0392b;
+}
+
+.timer-button.minimize {
+  padding: 4px 8px;
+  font-size: 1.2em;
+  line-height: 1;
+}
+
+.timer-icon {
+  font-size: 1.2em;
+} 
