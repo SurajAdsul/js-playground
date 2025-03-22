@@ -5,7 +5,8 @@ function Preferences({ initialPreferences, currentTheme, onClose, onSave }) {
   const [preferences, setPreferences] = useState(initialPreferences || {
     fontSize: 16,
     autocomplete: true,
-    theme: 'dracula'
+    theme: 'dracula',
+    showTimer: true
   })
   const [isSaved, setIsSaved] = useState(false)
 
@@ -85,7 +86,8 @@ function Preferences({ initialPreferences, currentTheme, onClose, onSave }) {
       const defaultPrefs = {
         fontSize: 16,
         autocomplete: true,
-        theme: 'dracula'
+        theme: 'dracula',
+        showTimer: true
       }
       
       setPreferences(defaultPrefs)
@@ -146,6 +148,19 @@ function Preferences({ initialPreferences, currentTheme, onClose, onSave }) {
             <option value="material-ocean">Material Ocean</option>
             <option value="vs-light">Visual Studio Light</option>
           </select>
+        </div>
+        
+        <div className="preference-item">
+          <label htmlFor="showTimer">
+            <input
+              type="checkbox"
+              id="showTimer"
+              name="showTimer"
+              checked={preferences.showTimer}
+              onChange={handleChange}
+            />
+            Show Timer Panel
+          </label>
         </div>
       </div>
       

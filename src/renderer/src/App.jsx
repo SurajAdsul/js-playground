@@ -107,7 +107,8 @@ function App() {
     fontSize: 16,
     autocomplete: true,
     theme: 'dracula',
-    autoExecute: true
+    autoExecute: true,
+    showTimer: true
   })
   const [showPackageManager, setShowPackageManager] = useState(false)
   const [showPreferences, setShowPreferences] = useState(false)
@@ -772,12 +773,14 @@ function App() {
         </div>
       </div>
 
-      <TimerPanel
-        timerSeconds={timerSeconds}
-        isTimerRunning={isTimerRunning}
-        onToggleTimer={toggleTimer}
-        onResetTimer={resetTimer}
-      />
+      {preferences.showTimer && (
+        <TimerPanel
+          timerSeconds={timerSeconds}
+          isTimerRunning={isTimerRunning}
+          onToggleTimer={toggleTimer}
+          onResetTimer={resetTimer}
+        />
+      )}
 
       <SplitPane
         split="vertical"
