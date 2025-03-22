@@ -110,6 +110,9 @@ function App() {
   })
   const [showPackageManager, setShowPackageManager] = useState(false)
   const [showPreferences, setShowPreferences] = useState(false)
+  const [isTimerRunning, setIsTimerRunning] = useState(false)
+  const [timerSeconds, setTimerSeconds] = useState(0)
+  const timerIntervalRef = useRef(null)
   const executeTimeoutRef = useRef(null)
   const lastExecutedCodeRef = useRef(code)
   const isTypingRef = useRef(false)
@@ -614,16 +617,60 @@ function App() {
     };
   }, []);
 
-  // Set up the clear-console listener
+  // Timer functions
+  const toggleTimer = () => {
+    if (isTimerRunning) {
+      clearInterval(timerIntervalRef.current)
+    } else {
+      timerIntervalRef.current = setInterval(() => {
+        setTimerSeconds(prev => prev + 1)
+      }, 1000)
+    }
+    setIsTimerRunning(!isTimerRunning)
+  }
+
+  const resetTimer = () => {
+    clearInterval(timerIntervalRef.current)
+    setIsTimerRunning(false)
+    setTimerSeconds(0)
+  }
+
+  const formatTime = (seconds) => {
+    const hours = Math.floor(seconds / 3600)
+    const minutes = Math.floor((seconds % 3600) / 60)
+    const remainingSeconds = seconds % 60
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${remainingSeconds.toString().padStart(2, '0')}`
+  }
+
+  // Clean up timer on unmount
+  useEffect(() => {
+    return () => {
+      if (timerIntervalRef.current) {
+        clearInterval(timerIntervalRef.current)
+      }
+    }
+  }, [])
 
   return (
     <div className={`app-container theme-${currentTheme}`}>
       <div className="header">
         <div className="title">JavaScript Playground</div>
         <div className="actions">
-          {/* <button className="theme-button" onClick={toggleTheme}>
-            {currentTheme === 'dracula' || currentTheme === 'material-ocean' || currentTheme === 'one-dark' ? '☀️' : '🌙'}
-          </button> */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginRight: '16px' }}>
+            <span style={{ color: 'inherit', fontFamily: 'monospace' }}>{formatTime(timerSeconds)}</span>
+            <button 
+              className={`button ${isTimerRunning ? 'active' : ''}`}
+              onClick={toggleTimer}
+            >
+              {isTimerRunning ? 'Stop' : 'Start'} Timer
+            </button>
+            <button 
+              className="button"
+              onClick={resetTimer}
+            >
+              Reset
+            </button>
+          </div>
           <button className="button" onClick={() => executeCode(code)} disabled={isExecuting}>
             {isExecuting ? 'Running...' : 'Run Code'}
           </button>
