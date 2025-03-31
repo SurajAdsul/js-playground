@@ -299,74 +299,91 @@ const savePreferences = (preferences, mainWindow) => {
 
 // Install a package
 const installPackage = async (packagesPath, packageName, version) => {
-  const packageToInstall = version ? `${packageName}@${version}` : packageName
+  const packageToInstall = version ? `${packageName}@${version}` : packageName;
   
-  console.log('Creating package.json if it doesn\'t exist')
-  const packageJsonPath = path.join(packagesPath, 'package.json')
+  console.log('Creating package.json if it doesn\'t exist');
+  const packageJsonPath = path.normalize(path.join(packagesPath, 'package.json'));
   
   // Read or create package.json
-  let packageJson
+  let packageJson;
   try {
-    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'))
+    packageJson = JSON.parse(fs.readFileSync(packageJsonPath, 'utf8'));
   } catch (e) {
     packageJson = {
       name: 'js-playground-packages',
       version: '1.0.0',
       description: 'Packages for JavaScript Playground',
       dependencies: {}
-    }
+    };
   }
   
   // Update package.json with the new dependency
-  packageJson.dependencies = packageJson.dependencies || {}
-  packageJson.dependencies[packageName] = version || 'latest'
+  packageJson.dependencies = packageJson.dependencies || {};
+  packageJson.dependencies[packageName] = version || 'latest';
   
   // Write updated package.json
-  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2))
-  console.log(`Updated package.json with ${packageName}@${version || 'latest'}`)
+  fs.writeFileSync(packageJsonPath, JSON.stringify(packageJson, null, 2));
+  console.log(`Updated package.json with ${packageName}@${version || 'latest'}`);
   
   // Create node_modules directory if it doesn't exist
-  const nodeModulesPath = path.join(packagesPath, 'node_modules')
+  const nodeModulesPath = path.normalize(path.join(packagesPath, 'node_modules'));
   if (!fs.existsSync(nodeModulesPath)) {
-    fs.mkdirSync(nodeModulesPath, { recursive: true })
+    fs.mkdirSync(nodeModulesPath, { recursive: true });
   }
 
   // Try to find npm and node executables
   const [npmPath, nodePath] = await Promise.all([
     findNpmExecutable(),
     findNodeExecutable()
-  ])
+  ]);
   
   if (!npmPath) {
-    throw new Error('Could not find npm executable')
+    throw new Error('Could not find npm executable');
   }
 
   if (!nodePath) {
-    throw new Error('Could not find node executable')
+    throw new Error('Could not find node executable');
   }
 
   // Use npm to install the package with explicit node path
-  console.log(`Using npm from: ${npmPath} with node from: ${nodePath}`)
+  console.log(`Using npm from: ${npmPath} with node from: ${nodePath}`);
   try {
-    // Set NODE_PATH environment variable
+    // Set NODE_PATH environment variable and ensure proper PATH
     const env = {
       ...process.env,
       NODE: nodePath,
-      PATH: `${path.dirname(nodePath)}${path.delimiter}${process.env.PATH}`
-    }
+      PATH: `${path.dirname(nodePath)}${path.delimiter}${process.env.PATH}`,
+      // Add packagesPath to NODE_PATH
+      NODE_PATH: `${packagesPath}${path.delimiter}${nodeModulesPath}${process.env.NODE_PATH ? path.delimiter + process.env.NODE_PATH : ''}`
+    };
 
-    const { stdout, stderr } = await execAsync(`"${npmPath}" install ${packageToInstall}`, {
+    // On Windows, we need to use npm.cmd instead of npm
+    const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
+    const npmFullPath = process.platform === 'win32' ? 
+      path.join(path.dirname(npmPath), npmCommand) : 
+      npmPath;
+
+    const { stdout, stderr } = await execAsync(`"${npmFullPath}" install ${packageToInstall} --save`, {
       cwd: packagesPath,
-      env
-    })
-    console.log('Package installation stdout:', stdout)
-    if (stderr) console.error('Package installation stderr:', stderr)
-    return { stdout, stderr }
+      env,
+      shell: true
+    });
+    
+    console.log('Package installation stdout:', stdout);
+    if (stderr) console.error('Package installation stderr:', stderr);
+    
+    // Verify the installation
+    const modulePath = path.normalize(path.join(nodeModulesPath, packageName));
+    if (!fs.existsSync(modulePath)) {
+      throw new Error(`Package installed but module directory not found at ${modulePath}`);
+    }
+    
+    return { stdout, stderr };
   } catch (error) {
-    console.error(`Error installing package:`, error)
-    throw error
+    console.error(`Error installing package:`, error);
+    throw error;
   }
-}
+};
 
 // Uninstall a package
 const uninstallPackage = async (packagesPath, packageName) => {
@@ -582,11 +599,25 @@ export function setupIpcHandlers(mainWindow) {
         require: (moduleName) => {
           try {
             const packagesPath = getPackagesPath();
-            const modulePath = path.join(packagesPath, 'node_modules', moduleName);
+            // Use path.normalize to handle Windows paths correctly
+            const modulePath = path.normalize(path.join(packagesPath, 'node_modules', moduleName));
             
             // Check if the module exists
             if (!fs.existsSync(modulePath)) {
               throw new Error(`Module '${moduleName}' not found. Please install it first.`);
+            }
+            
+            // Add module directory to NODE_PATH
+            const nodePathEnv = process.env.NODE_PATH || '';
+            const moduleDir = path.dirname(modulePath);
+            process.env.NODE_PATH = nodePathEnv ? 
+              `${nodePathEnv}${path.delimiter}${moduleDir}` : 
+              moduleDir;
+            
+            // Clear require cache for this module to ensure fresh load
+            const resolvedPath = require.resolve(modulePath);
+            if (require.cache[resolvedPath]) {
+              delete require.cache[resolvedPath];
             }
             
             // Try to load the module
@@ -621,13 +652,27 @@ export function setupIpcHandlers(mainWindow) {
         eval: false,
         wasm: false,
         sourceExtensions: ['js', 'mjs'],
-        compiler: 'javascript'
+        compiler: 'javascript',
+        require: {
+          external: true,
+          builtin: ['*'],
+          root: getPackagesPath(),
+          mock: {
+            fs: sandbox.fs,
+            path: path
+          }
+        }
       });
 
-      // Transform ES module code to CommonJS
-      const transformedCode = code.replace(/import\s+(\{[^}]+\}|\*\s+as\s+[^;]+|[^;]+)\s+from\s+['"][^'"]+['"]/g, (match) => {
-        return match.replace('import', 'const').replace('from', '= require');
-      });
+      // Transform ES module code to CommonJS and handle Windows paths
+      const transformedCode = code
+        .replace(/import\s+(\{[^}]+\}|\*\s+as\s+[^;]+|[^;]+)\s+from\s+['"][^'"]+['"]/g, (match) => {
+          return match.replace('import', 'const').replace('from', '= require');
+        })
+        .replace(/require\(['"]([^'"]+)['"]\)/g, (match, p1) => {
+          // Normalize the path for Windows compatibility
+          return `require('${p1.replace(/\\/g, '/')}')`;
+        });
 
       // Execute the transformed code
       const result = vm.run(transformedCode);
